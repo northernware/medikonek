@@ -48,10 +48,26 @@ Delete it before going anywhere near real data.
 ### Database
 
 `npm run db:start` runs a local Prisma Postgres instance in the background and
-serves it at `postgres://postgres:postgres@localhost:51214/template1`. Any
-PostgreSQL connection string works instead — point `DATABASE_URL` at Neon,
-Supabase, RDS or your own server and the migrations apply unchanged.
-`npm run db:stop` shuts the local instance down.
+serves it at `postgres://postgres:postgres@localhost:51214/template1`.
+`npm run db:stop` shuts it down.
+
+### Pointing at a hosted database
+
+Any PostgreSQL connection string works — Prisma Postgres, Neon, Supabase, RDS or
+your own server. Put it in `DATABASE_URL` and apply the schema:
+
+```bash
+npm run db:deploy     # prisma migrate deploy — applies migrations, no shadow DB
+```
+
+`db:deploy` is the command for a hosted database; `db:migrate` (`migrate dev`) is
+for *authoring* a new migration and needs a throwaway shadow database, which a
+hosted instance rarely offers. The workflow is: change `prisma/schema.prisma`,
+run `db:migrate` against the local server to generate the migration, commit it,
+then `db:deploy` against the hosted one.
+
+Do not run `db:seed` against a database with real patients in it — it creates a
+demo practice.
 
 ## Scripts
 
