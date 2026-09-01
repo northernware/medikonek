@@ -112,6 +112,23 @@ export async function createAppointment(_prev: FormState, formData: FormData): P
     select: { id: true, patientId: true },
   });
 
+  // Booked to satisfy an earlier visit's follow-up: link it so the record stops
+  // showing as due. Scoped to this doctor and patient, and only onto a record
+  // that has not already been satisfied.
+  const followUpFor = String(formData.get("followUpFor") ?? "");
+  if (followUpFor) {
+    await prisma.medicalRecord.updateMany({
+      where: {
+        id: followUpFor,
+        doctorId: doctor.id,
+        patientId: appointment.patientId,
+        followUpAppointmentId: null,
+      },
+      data: { followUpAppointmentId: appointment.id },
+    });
+    revalidatePath(`/records/${followUpFor}`);
+  }
+
   revalidatePath("/appointments");
   revalidatePath("/calendar");
   revalidatePath("/");

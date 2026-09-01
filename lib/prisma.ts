@@ -8,7 +8,20 @@ function createClient() {
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set — copy .env.example to .env");
   }
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+
+  const adapter = new PrismaPg({
+    connectionString,
+    // Retire idle connections before the server does. A pooled endpoint (and
+    // the local `prisma dev` server) closes idle sockets on its own schedule;
+    // without a shorter timeout here the pool keeps handing out connections the
+    // far end has already hung up on, which surfaces as an intermittent
+    // `ConnectionClosed` on whichever request happens to draw the dead one.
+    idleTimeoutMillis: 10_000,
+    max: 10,
+    connectionTimeoutMillis: 10_000,
+  });
+
+  return new PrismaClient({ adapter });
 }
 
 // Next.js re-evaluates modules on hot reload; without the global we would open a

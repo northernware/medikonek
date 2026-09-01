@@ -26,7 +26,7 @@ function usableDate(requested: unknown, window: { earliest: string; latest: stri
 
 export default async function NewAppointmentPage({ searchParams }: PageProps<"/appointments/new">) {
   const doctor = await requireDoctor();
-  const { patientId, date } = await searchParams;
+  const { patientId, date, service, followUpFor } = await searchParams;
   const { patients, busyByDay, followUps, window } = await bookingFormData(doctor.id);
 
   if (patients.length === 0) {
@@ -65,7 +65,10 @@ export default async function NewAppointmentPage({ searchParams }: PageProps<"/a
             patientId: preselected ? (patientId as string) : "",
             date: usableDate(date, window),
             time: "",
-            service: ServiceType.GENERAL_CONSULTATION,
+            service:
+              typeof service === "string" && service in ServiceType
+                ? (service as ServiceType)
+                : ServiceType.GENERAL_CONSULTATION,
             reason: "",
             type: AppointmentType.IN_PERSON,
             priority: VisitPriority.ROUTINE,
@@ -80,6 +83,7 @@ export default async function NewAppointmentPage({ searchParams }: PageProps<"/a
           }}
           submitLabel="Book appointment"
           cancelHref="/appointments"
+          followUpForRecordId={typeof followUpFor === "string" ? followUpFor : undefined}
         />
       </Card>
     </div>

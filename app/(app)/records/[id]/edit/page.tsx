@@ -49,6 +49,7 @@ export default async function EditRecordPage({ params }: PageProps<"/records/[id
             appointmentId: record.appointmentId ?? "",
             chiefComplaint: record.chiefComplaint,
             historyOfPresentIllness: text(record.historyOfPresentIllness),
+            physicalExamination: text(record.physicalExamination),
             temperatureC: num(record.temperatureC),
             heartRate: num(record.heartRate),
             respiratoryRate: num(record.respiratoryRate),

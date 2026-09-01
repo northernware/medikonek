@@ -137,6 +137,7 @@ export const medicalRecordSchema = z.object({
   visitDate: dateTimeLocal("Visit date"),
   chiefComplaint: requiredText("Chief complaint", 300),
   historyOfPresentIllness: optionalText(4000),
+  physicalExamination: optionalText(4000),
 
   temperatureC: optionalNumber({ min: 25, max: 45, label: "Temperature" }),
   heartRate: optionalNumber({ min: 20, max: 300, int: true, label: "Heart rate" }),

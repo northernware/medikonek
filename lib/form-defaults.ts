@@ -104,6 +104,7 @@ export type RecordDefaults = {
   appointmentId: string;
   chiefComplaint: string;
   historyOfPresentIllness: string;
+  physicalExamination: string;
   temperatureC: string;
   heartRate: string;
   respiratoryRate: string;
@@ -125,6 +126,7 @@ export function blankRecord(visitDate: string): RecordDefaults {
     appointmentId: "",
     chiefComplaint: "",
     historyOfPresentIllness: "",
+    physicalExamination: "",
     temperatureC: "",
     heartRate: "",
     respiratoryRate: "",

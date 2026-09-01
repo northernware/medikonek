@@ -88,12 +88,12 @@ demo practice.
 app/
   (auth)/            login and register — redirects to / when already signed in
   (app)/             everything behind the session gate
-    page.tsx         today's clinic, counts, recently documented
+    page.tsx         today's clinic, waiting room, follow-ups due, no-shows
     calendar/        month grid of booked days and times, plus a day panel
     households/      list, create, edit, household detail, add a member
     patients/        list, chart, edit
     appointments/    list (upcoming/past/all), booking, detail, reschedule
-    records/         document a visit, view, edit
+    records/         document a visit, view, edit, printable prescription
   actions/           server actions — one module per resource
 lib/
   auth.ts            getCurrentDoctor / requireDoctor
@@ -110,6 +110,27 @@ components/          UI kit, shared lists, and the four forms
 `Doctor → Household → Patient`, with `Appointment` and `MedicalRecord` hanging
 off a patient and `Prescription` off a record. A record optionally links to the
 appointment it documents; making that link marks the appointment completed.
+
+### The clinical flow
+
+The release target is one unbroken path, and each step hands off to the next:
+
+```
+register patient → group under household → book appointment
+  → check in → document consultation → prescribe → schedule follow-up
+```
+
+The dashboard is where that flow is driven. Today's schedule carries a **Check
+in** button; checking someone in moves them to a **Waiting room** panel with a
+**Start consultation** link that opens a record already bound to their booking;
+documenting the visit marks the appointment completed; the record offers
+**Print prescription**; and a follow-up date raises the visit in **Follow-ups
+due** until an appointment is booked against it.
+
+That last link is explicit — `MedicalRecord.followUpAppointmentId` — so "due"
+means *asked for and not yet booked*, rather than a guess from whatever
+appointments happen to sit near the date. Booking from the dashboard or the
+record sets it and the item drops off the list.
 
 ### Booking rules
 
@@ -200,6 +221,35 @@ decision about whose record the encounter belongs to.
 **A primary contact / guardian per household.** Nothing currently marks which
 member to call, or who is a dependent's guardian — a nullable `primaryContactId`
 on `Household` pointing at one of its `Patient` rows would cover it.
+
+**Roles and permissions.** Every account is a doctor with full access to its own
+data. Nurses, receptionists and administrators — and permission-scoped access to
+records — are not modelled at all. This is the largest single gap for a clinic
+with more than one person in it, and it has to land before an audit trail means
+anything.
+
+**An audit trail.** Nothing records who viewed or changed a record. For
+Philippine Data Privacy Act purposes this is not optional, and retrofitting it
+after roles exist is the right order.
+
+**Patient documents and lab results.** No file storage of any kind, so uploaded
+labs, referral letters and images have nowhere to go. Laboratory *requests* are
+likewise unmodelled — a visit can describe them in the plan, but they are not
+structured or trackable.
+
+**Medical certificates and referral letters.** The printable prescription is the
+only document the app produces; these two would follow the same shape.
+
+**Emergency contact, current medications, medical alerts.** Patient profiles
+carry allergies and conditions but none of these.
+
+**Billing, payments and receipts. Reporting and CSV/Excel export. Reminder
+delivery. Two-factor authentication. Session timeouts. Consent records.** None
+started.
+
+**Calendar depth.** Month view only — no day or week view, no clinic-hours
+editing, no breaks, leave or blocked dates, no filtering by service or status,
+no drag-to-reschedule.
 
 **Attachments** (labs, referral letters, images) need file storage, which the
 app has none of yet.

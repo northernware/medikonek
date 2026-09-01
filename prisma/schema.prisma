@@ -255,6 +255,9 @@ model Appointment {
   /// Filled in when the visit is documented.
   medicalRecord MedicalRecord?
 
+  /// Set when this booking was made to satisfy an earlier visit's follow-up.
+  followUpForRecord MedicalRecord? @relation("FollowUpBooking")
+
   @@index([doctorId, scheduledAt])
   @@index([patientId])
   @@index([previousAppointmentId])
@@ -276,6 +279,7 @@ model MedicalRecord {
 
   chiefComplaint          String
   historyOfPresentIllness String?
+  physicalExamination     String?
 
   // Vitals — all optional; a doctor records what they took.
   temperatureC     Float?
@@ -289,8 +293,14 @@ model MedicalRecord {
 
   assessment    String?
   treatmentPlan String?
-  followUpDate  DateTime? @db.Date
   notes         String?
+
+  /// When the patient should be seen again, and the booking that satisfies it.
+  /// Keeping the link explicit is what lets "follow-ups due" mean "asked for and
+  /// not yet booked" rather than a guess from nearby appointments.
+  followUpDate          DateTime?    @db.Date
+  followUpAppointmentId String?      @unique
+  followUpAppointment   Appointment? @relation("FollowUpBooking", fields: [followUpAppointmentId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

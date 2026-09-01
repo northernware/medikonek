@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { deleteMedicalRecord } from "@/app/actions/records";
 import { requireDoctor } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatCalendarDate, formatDateTime } from "@/lib/datetime";
+import { formatCalendarDate, formatDateTime, toDateInputValue } from "@/lib/datetime";
 import { ageFrom, bloodPressure, bmi, fullName, SEX_LABELS } from "@/lib/domain";
 import { AllergyBanner, ALLERGY_SELECT } from "@/components/allergy-banner";
 import { DangerZone } from "@/components/danger-zone";
@@ -33,6 +33,7 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
         },
       },
       appointment: { select: { id: true, scheduledAt: true, reason: true } },
+      followUpAppointment: { select: { id: true, scheduledAt: true } },
       prescriptions: { orderBy: { createdAt: "asc" } },
     },
   });
@@ -95,11 +96,34 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
 
       <Card className="space-y-5 p-5">
         <Prose label="History of present illness" text={record.historyOfPresentIllness} />
+        <Prose label="Physical examination" text={record.physicalExamination} />
         <Prose label="Assessment" text={record.assessment} />
         <Prose label="Treatment plan" text={record.treatmentPlan} />
         <Prose label="Notes" text={record.notes} />
         {record.followUpDate ? (
-          <Detail label="Follow-up" value={formatCalendarDate(record.followUpDate)} />
+          <Detail
+            label="Follow-up"
+            value={
+              record.followUpAppointment ? (
+                <Link
+                  href={`/appointments/${record.followUpAppointment.id}`}
+                  className="text-accent-ink hover:underline"
+                >
+                  Booked for {formatDateTime(record.followUpAppointment.scheduledAt)}
+                </Link>
+              ) : (
+                <span className="flex flex-wrap items-center gap-2">
+                  <span>Due {formatCalendarDate(record.followUpDate)} — not booked</span>
+                  <Link
+                    href={`/appointments/new?patientId=${patient.id}&service=FOLLOW_UP_CHECKUP&date=${toDateInputValue(record.followUpDate)}&followUpFor=${record.id}`}
+                    className={buttonClass("secondary")}
+                  >
+                    Book follow-up
+                  </Link>
+                </span>
+              )
+            }
+          />
         ) : null}
         {record.appointment ? (
           <Detail
@@ -120,7 +144,15 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
 
       {record.prescriptions.length > 0 ? (
         <Card>
-          <CardHeader title="Prescriptions" subtitle={`${record.prescriptions.length} item(s)`} />
+          <CardHeader
+            title="Prescriptions"
+            subtitle={`${record.prescriptions.length} item(s)`}
+            action={
+              <Link href={`/records/${record.id}/prescription`} className={buttonClass("secondary")}>
+                Print prescription
+              </Link>
+            }
+          />
           <ul className="divide-y divide-border">
             {record.prescriptions.map((rx) => (
               <li key={rx.id} className="px-5 py-4">

@@ -79,3 +79,32 @@ export async function bookingFormData(doctorId: string, excludeAppointmentId?: s
 
   return { patients, busyByDay, followUps, window: { earliest, latest } };
 }
+
+/**
+ * Records whose follow-up has been asked for but never booked. The explicit
+ * `followUpAppointmentId` link is what makes this exact — inferring it from
+ * "is there an appointment near that date" would quietly drop real ones.
+ */
+export async function followUpsDue(doctorId: string, horizonDays = 14) {
+  const horizon = new Date();
+  horizon.setDate(horizon.getDate() + horizonDays);
+
+  return prisma.medicalRecord.findMany({
+    where: {
+      doctorId,
+      followUpAppointmentId: null,
+      followUpDate: { not: null, lte: horizon },
+    },
+    orderBy: { followUpDate: "asc" },
+    take: 25,
+    select: {
+      id: true,
+      followUpDate: true,
+      visitDate: true,
+      chiefComplaint: true,
+      patient: {
+        select: { id: true, firstName: true, middleName: true, lastName: true },
+      },
+    },
+  });
+}

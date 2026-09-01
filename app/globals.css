@@ -124,3 +124,33 @@ body {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------------------------------------------------------------------------
+   Print. Only the prescription sheet should reach the paper — the sidebar,
+   headers and buttons are screen furniture.
+--------------------------------------------------------------------------- */
+@media print {
+  aside,
+  header {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  main > div {
+    max-width: none;
+    padding: 0;
+  }
+
+  .prescription-sheet {
+    color: #000;
+    background: #fff;
+  }
+
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
+}

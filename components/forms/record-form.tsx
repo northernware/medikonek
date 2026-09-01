@@ -112,6 +112,20 @@ export function RecordForm({
             defaultValue={defaults.historyOfPresentIllness}
           />
         </Field>
+
+        <Field
+          label="Physical examination"
+          htmlFor="physicalExamination"
+          error={err?.physicalExamination}
+          hint="Findings on examination — the vitals below are recorded separately."
+        >
+          <TextArea
+            id="physicalExamination"
+            name="physicalExamination"
+            rows={4}
+            defaultValue={defaults.physicalExamination}
+          />
+        </Field>
       </section>
 
       <section className="space-y-4 border-t border-border pt-6">
