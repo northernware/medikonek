@@ -67,6 +67,19 @@ export function formatTime(at: Date) {
   }).format(at);
 }
 
+/** "9:00a" — for calendar cells, where "9:00 AM" costs too much width. */
+export function formatTimeCompact(at: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: CLINIC_TIME_ZONE,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  })
+    .format(at)
+    .replace(/\s?AM$/, "a")
+    .replace(/\s?PM$/, "p");
+}
+
 export function formatDate(at: Date) {
   return new Intl.DateTimeFormat(LOCALE, {
     timeZone: CLINIC_TIME_ZONE,
@@ -172,7 +185,10 @@ export function formatMonthHeading(year: number, month: number) {
   );
 }
 
-/** "Wednesday, 2 September" from a day key — no instant conversion needed. */
+/**
+ * "Wednesday, September 2" from a day key — no instant conversion needed. The
+ * year is omitted because this always sits beside the month heading.
+ */
 export function formatDayKeyHeading(key: string) {
   const [y, m, d] = key.split("-").map(Number);
   return new Intl.DateTimeFormat(LOCALE, {
@@ -180,7 +196,6 @@ export function formatDayKeyHeading(key: string) {
     weekday: "long",
     day: "numeric",
     month: "long",
-    year: "numeric",
   }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 

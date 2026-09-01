@@ -11,15 +11,18 @@ import { buttonClass, Card, EmptyState, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Book appointment" };
 
-/** Next open slot: tomorrow at 09:00 in clinic time. */
-function defaultSlot() {
+/**
+ * 09:00 on the requested day, or tomorrow when the calendar did not send one.
+ */
+function defaultSlot(date: unknown) {
+  if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) return `${date}T09:00`;
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
   return `${toDateTimeLocalValue(tomorrow).slice(0, 10)}T09:00`;
 }
 
 export default async function NewAppointmentPage({ searchParams }: PageProps<"/appointments/new">) {
   const doctor = await requireDoctor();
-  const { patientId } = await searchParams;
+  const { patientId, date } = await searchParams;
   const patients = await patientOptions(doctor.id);
 
   if (patients.length === 0) {
@@ -52,7 +55,7 @@ export default async function NewAppointmentPage({ searchParams }: PageProps<"/a
           patients={patients}
           defaults={{
             patientId: preselected ? (patientId as string) : "",
-            scheduledAt: defaultSlot(),
+            scheduledAt: defaultSlot(date),
             durationMinutes: SERVICE_MINUTES.GENERAL_CONSULTATION,
             service: ServiceType.GENERAL_CONSULTATION,
             reason: "",

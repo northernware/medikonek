@@ -102,11 +102,15 @@ until the doctor overrides it. Free-text `reason` still carries the specifics.
 
 ### Calendar
 
-`/calendar?month=YYYY-MM` renders whole Sunday-first weeks for the month, with
-each day cell showing its booked times (density dots on phones, where there is no
-room for text) and a colour per status. Selecting a day opens the full schedule
-for it below the grid. Days are bucketed by a clinic-timezone `YYYY-MM-DD` key,
-so the month query stays a single indexed range scan.
+`/calendar?month=YYYY-MM&day=YYYY-MM-DD` renders whole Sunday-first weeks for the
+month, each day cell showing its booked times in a compact form (`9:00a`) with a
+colour per status — phones get density dots instead, where there is no room for
+text. The selected day's full schedule sits in a sticky panel **beside** the
+grid on large screens, stacking underneath on small ones. Selecting an empty day
+offers a booking link prefilled to it, and picking a leading or trailing cell
+moves the grid to that neighbouring month. Days are bucketed by a
+clinic-timezone `YYYY-MM-DD` key, so the month query stays a single indexed
+range scan.
 
 ### Security notes
 
