@@ -6,6 +6,7 @@ import { requireDoctor } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatCalendarDate, formatDateTime } from "@/lib/datetime";
 import { ageFrom, bloodPressure, bmi, fullName, SEX_LABELS } from "@/lib/domain";
+import { AllergyBanner, ALLERGY_SELECT } from "@/components/allergy-banner";
 import { DangerZone } from "@/components/danger-zone";
 import { buttonClass, Card, CardHeader, Detail, PageHeader, Prose } from "@/components/ui";
 
@@ -26,7 +27,8 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
           lastName: true,
           dateOfBirth: true,
           sex: true,
-          allergies: true,
+          allergyStatus: true,
+          allergies: { select: ALLERGY_SELECT },
           household: { select: { id: true, name: true } },
         },
       },
@@ -69,12 +71,7 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
         }
       />
 
-      {patient.allergies ? (
-        <div className="rounded-xl border border-danger/30 bg-danger-soft px-5 py-4">
-          <p className="text-xs font-semibold tracking-wide text-danger-ink uppercase">Allergies</p>
-          <p className="mt-1 text-sm whitespace-pre-wrap text-danger-ink">{patient.allergies}</p>
-        </div>
-      ) : null}
+      <AllergyBanner status={patient.allergyStatus} allergies={patient.allergies} />
 
       {vitals.length > 0 ? (
         <Card>

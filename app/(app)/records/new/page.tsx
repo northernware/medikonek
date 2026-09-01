@@ -8,6 +8,7 @@ import { formatDateTime, toDateTimeLocalValue } from "@/lib/datetime";
 import { ageFrom, fullName, SEX_LABELS } from "@/lib/domain";
 import { RecordForm } from "@/components/forms/record-form";
 import { blankRecord } from "@/lib/form-defaults";
+import { AllergyBanner, ALLERGY_SELECT } from "@/components/allergy-banner";
 import { Card, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Document visit" };
@@ -27,7 +28,8 @@ export default async function NewRecordPage({ searchParams }: PageProps<"/record
       lastName: true,
       dateOfBirth: true,
       sex: true,
-      allergies: true,
+      allergyStatus: true,
+      allergies: { select: ALLERGY_SELECT },
       household: { select: { id: true, name: true } },
     },
   });
@@ -66,12 +68,7 @@ export default async function NewRecordPage({ searchParams }: PageProps<"/record
         }
       />
 
-      {patient.allergies ? (
-        <div className="rounded-xl border border-danger/30 bg-danger-soft px-5 py-4">
-          <p className="text-xs font-semibold tracking-wide text-danger-ink uppercase">Allergies</p>
-          <p className="mt-1 text-sm whitespace-pre-wrap text-danger-ink">{patient.allergies}</p>
-        </div>
-      ) : null}
+      <AllergyBanner status={patient.allergyStatus} allergies={patient.allergies} />
 
       <Card className="p-5 sm:p-6">
         <RecordForm

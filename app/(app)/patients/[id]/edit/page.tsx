@@ -16,6 +16,10 @@ export default async function EditPatientPage({ params }: PageProps<"/patients/[
 
   const patient = await prisma.patient.findFirst({
     where: { id, household: { doctorId: doctor.id } },
+    include: {
+      allergies: { orderBy: { createdAt: "asc" } },
+      conditions: { orderBy: { createdAt: "asc" } },
+    },
   });
   if (!patient) notFound();
 
@@ -43,8 +47,20 @@ export default async function EditPatientPage({ params }: PageProps<"/patients/[
             sex: patient.sex,
             relationship: patient.relationship,
             bloodType: patient.bloodType,
-            allergies: patient.allergies ?? "",
-            chronicConditions: patient.chronicConditions ?? "",
+            allergyStatus: patient.allergyStatus,
+            allergies: patient.allergies.map((a) => ({
+              label: a.label,
+              reaction: a.reaction ?? "",
+              severity: a.severity ?? "",
+              notes: a.notes ?? "",
+            })),
+            conditionStatus: patient.conditionStatus,
+            conditions: patient.conditions.map((c) => ({
+              label: c.label,
+              reaction: "",
+              severity: "",
+              notes: c.notes ?? "",
+            })),
             contactNumber: patient.contactNumber ?? "",
             email: patient.email ?? "",
           }}

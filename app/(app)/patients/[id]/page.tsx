@@ -14,6 +14,7 @@ import {
   SEX_LABELS,
 } from "@/lib/domain";
 import { AppointmentList, APPOINTMENT_LIST_INCLUDE } from "@/components/appointment-list";
+import { AllergyBanner, ALLERGY_SELECT } from "@/components/allergy-banner";
 import { DangerZone } from "@/components/danger-zone";
 import { Badge, buttonClass, Card, CardHeader, Detail, EmptyState, PageHeader } from "@/components/ui";
 
@@ -35,6 +36,8 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
     where: { id, household: { doctorId: doctor.id } },
     include: {
       household: { select: { id: true, name: true, contactNumber: true } },
+      allergies: { select: ALLERGY_SELECT },
+      conditions: { orderBy: { label: "asc" }, select: { id: true, label: true, notes: true } },
       medicalRecords: {
         orderBy: { visitDate: "desc" },
         select: {
@@ -89,12 +92,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
         }
       />
 
-      {patient.allergies ? (
-        <div className="rounded-xl border border-danger/30 bg-danger-soft px-5 py-4">
-          <p className="text-xs font-semibold tracking-wide text-danger-ink uppercase">Allergies</p>
-          <p className="mt-1 text-sm whitespace-pre-wrap text-danger-ink">{patient.allergies}</p>
-        </div>
-      ) : null}
+      <AllergyBanner status={patient.allergyStatus} allergies={patient.allergies} />
 
       <Card className="p-5">
         <dl className="grid gap-4 sm:grid-cols-3">
@@ -102,16 +100,38 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
           <Detail label="Blood type" value={BLOOD_TYPE_LABELS[patient.bloodType]} />
           <Detail label="Contact" value={patient.contactNumber ?? patient.household.contactNumber} />
           <Detail label="Email" value={patient.email} />
+          <Detail label="Visits recorded" value={patient.medicalRecords.length} />
           <Detail
             label="Chronic conditions"
             value={
-              patient.chronicConditions ? (
-                <span className="whitespace-pre-wrap">{patient.chronicConditions}</span>
-              ) : null
+              patient.conditions.length > 0 ? (
+                <span className="flex flex-wrap gap-1.5">
+                  {patient.conditions.map((c) => (
+                    <Badge key={c.id} tone="accent">
+                      {c.label}
+                    </Badge>
+                  ))}
+                </span>
+              ) : patient.conditionStatus === "NONE_KNOWN" ? (
+                "None known"
+              ) : (
+                <span className="text-warn-ink">Not asked</span>
+              )
             }
           />
-          <Detail label="Visits recorded" value={patient.medicalRecords.length} />
         </dl>
+        {patient.conditions.some((c) => c.notes) ? (
+          <dl className="mt-4 space-y-2 border-t border-border pt-4">
+            {patient.conditions
+              .filter((c) => c.notes)
+              .map((c) => (
+                <div key={c.id}>
+                  <dt className="text-xs font-medium text-ink-faint">{c.label}</dt>
+                  <dd className="text-sm text-pretty">{c.notes}</dd>
+                </div>
+              ))}
+          </dl>
+        ) : null}
       </Card>
 
       <Card>

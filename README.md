@@ -109,6 +109,20 @@ collide with an existing booking, and the action re-checks against the whole
 clinic day before writing, so two people racing for the last slot cannot both
 get it.
 
+### Allergies and conditions
+
+Both are lists of rows (`PatientAllergy`, `PatientCondition`), not free text, so
+each allergy carries its own reaction, severity and notes. The form field is a
+search-and-tag picker: type to filter a grouped catalogue in `lib/clinical.ts`,
+pick several, remove them as tags, and add anything the catalogue does not list
+— the suggestions are a shortcut, never a constraint.
+
+Each list also carries a `ClinicalListStatus`, because **an empty list is not
+the same as "no known allergies"**. `UNKNOWN` (nobody has asked) renders as an
+amber warning on the chart; `NONE_KNOWN` (asked, none found) renders as a quiet
+confirmation; `RECORDED` renders the list itself, worst severity first. Nothing
+reads as safe by omission.
+
 ### Services
 
 Every appointment carries a `ServiceType` from a fixed list of fifteen — general

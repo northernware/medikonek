@@ -1,3 +1,5 @@
+import type { ClinicalItem } from "@/components/clinical-picker";
+
 /**
  * Shapes and blank values the forms are seeded with. These live outside the
  * `"use client"` form modules because server components build the defaults —
@@ -27,8 +29,10 @@ export type PatientDefaults = {
   sex: string;
   relationship: string;
   bloodType: string;
-  allergies: string;
-  chronicConditions: string;
+  allergyStatus: string;
+  allergies: ClinicalItem[];
+  conditionStatus: string;
+  conditions: ClinicalItem[];
   contactNumber: string;
   email: string;
 };
@@ -43,8 +47,10 @@ export function blankPatient(householdId: string): PatientDefaults {
     sex: "",
     relationship: "CHILD",
     bloodType: "UNKNOWN",
-    allergies: "",
-    chronicConditions: "",
+    allergyStatus: "UNKNOWN",
+    allergies: [],
+    conditionStatus: "UNKNOWN",
+    conditions: [],
     contactNumber: "",
     email: "",
   };

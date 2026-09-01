@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { Field, FieldGrid, FormError, Select, SubmitButton, TextArea, TextInput } from "@/components/form";
+import { Field, FieldGrid, FormError, Select, SubmitButton, TextInput } from "@/components/form";
 import { buttonClass } from "@/components/ui";
 import { BLOOD_TYPE_LABELS, RELATIONSHIP_LABELS, SEX_LABELS } from "@/lib/domain";
+import { ALLERGY_GROUPS, CONDITION_GROUPS } from "@/lib/clinical";
+import { ClinicalPicker } from "@/components/clinical-picker";
 import type { PatientDefaults } from "@/lib/form-defaults";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/validation";
 
@@ -109,26 +111,38 @@ export function PatientForm({
         </FieldGrid>
       </section>
 
-      <section className="space-y-4 border-t border-border pt-5">
-        <h2 className="text-sm font-semibold">Standing clinical notes</h2>
-        <FieldGrid>
-          <Field
-            label="Allergies"
-            htmlFor="allergies"
-            error={err?.allergies}
-            hint="Shown at the top of the chart on every visit."
-          >
-            <TextArea id="allergies" name="allergies" rows={3} defaultValue={defaults.allergies} />
-          </Field>
-          <Field label="Chronic conditions" htmlFor="chronicConditions" error={err?.chronicConditions}>
-            <TextArea
-              id="chronicConditions"
-              name="chronicConditions"
-              rows={3}
-              defaultValue={defaults.chronicConditions}
-            />
-          </Field>
-        </FieldGrid>
+      <section className="space-y-5 border-t border-border pt-5">
+        <div>
+          <h2 className="text-sm font-semibold">Standing clinical notes</h2>
+          <p className="text-sm text-ink-muted">
+            Allergies show at the top of this patient&rsquo;s chart on every visit.
+          </p>
+        </div>
+
+        <ClinicalPicker
+          legend="Allergies"
+          fieldName="allergy"
+          statusName="allergyStatus"
+          groups={ALLERGY_GROUPS}
+          placeholder="Search or select allergies…"
+          noneLabel="No known allergies"
+          defaultStatus={defaults.allergyStatus as "RECORDED" | "NONE_KNOWN" | "UNKNOWN"}
+          defaultItems={defaults.allergies}
+          withAllergyDetail
+          error={err?.allergyStatus}
+        />
+
+        <ClinicalPicker
+          legend="Chronic conditions"
+          fieldName="condition"
+          statusName="conditionStatus"
+          groups={CONDITION_GROUPS}
+          placeholder="Search or select conditions…"
+          noneLabel="No known chronic conditions"
+          defaultStatus={defaults.conditionStatus as "RECORDED" | "NONE_KNOWN" | "UNKNOWN"}
+          defaultItems={defaults.conditions}
+          error={err?.conditionStatus}
+        />
 
         <FieldGrid>
           <Field label="Contact number" htmlFor="contactNumber" error={err?.contactNumber}>

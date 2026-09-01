@@ -24,7 +24,8 @@ async function loadHousehold(doctorId: string, householdId: string) {
           dateOfBirth: true,
           sex: true,
           relationship: true,
-          allergies: true,
+          allergyStatus: true,
+          allergies: { select: { id: true, severity: true } },
           _count: { select: { medicalRecords: true } },
         },
       },
@@ -115,7 +116,13 @@ export default async function HouseholdPage({ params }: PageProps<"/households/[
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                       <span className="truncate font-medium">{fullName(patient)}</span>
-                      {patient.allergies ? <Badge tone="danger">Allergies</Badge> : null}
+                      {patient.allergies.length > 0 ? (
+                        <Badge tone={patient.allergies.some((a) => a.severity === "SEVERE") ? "danger" : "warn"}>
+                          {patient.allergies.length} {patient.allergies.length === 1 ? "allergy" : "allergies"}
+                        </Badge>
+                      ) : patient.allergyStatus === "UNKNOWN" ? (
+                        <Badge tone="neutral">Allergies not asked</Badge>
+                      ) : null}
                     </span>
                     <span className="mt-0.5 block truncate text-sm text-ink-muted">
                       {RELATIONSHIP_LABELS[patient.relationship]} · {SEX_LABELS[patient.sex]} ·{" "}

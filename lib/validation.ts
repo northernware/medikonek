@@ -1,9 +1,11 @@
 import { z } from "zod";
 import {
+  AllergySeverity,
   AppointmentStatus,
   AppointmentType,
   BloodType,
   BookingSource,
+  ClinicalListStatus,
   Relationship,
   ReminderPreference,
   ServiceType,
@@ -94,8 +96,8 @@ export const patientSchema = z.object({
   sex: z.enum(Sex, { message: "Select a sex" }),
   relationship: z.enum(Relationship, { message: "Select a relationship" }),
   bloodType: z.enum(BloodType).default(BloodType.UNKNOWN),
-  allergies: optionalText(600),
-  chronicConditions: optionalText(600),
+  allergyStatus: z.enum(ClinicalListStatus).default(ClinicalListStatus.UNKNOWN),
+  conditionStatus: z.enum(ClinicalListStatus).default(ClinicalListStatus.UNKNOWN),
   contactNumber: optionalText(40),
   email: optionalText(160).refine((v) => v === null || z.email().safeParse(v).success, {
     message: "Enter a valid email address",
@@ -158,6 +160,19 @@ export const medicalRecordSchema = z.object({
   notes: optionalText(4000),
 });
 
+/** One row of a clinical list. `label` is free text — the catalogue only suggests. */
+export const clinicalItemSchema = z.object({
+  label: requiredText("Entry", 160),
+  reaction: optionalText(200),
+  severity: z
+    .string()
+    .trim()
+    .transform((v) => (v === "" ? null : v))
+    .nullable()
+    .refine((v) => v === null || v in AllergySeverity, { message: "Pick a severity" }),
+  notes: optionalText(400),
+});
+
 export const prescriptionSchema = z.object({
   drugName: requiredText("Drug name", 160),
   dosage: requiredText("Dosage", 80),
@@ -169,8 +184,12 @@ export const prescriptionSchema = z.object({
 /** Turn a Zod failure into the shape the form components read. */
 export function toFieldErrors(error: z.ZodError): FormState {
   const flat = z.flattenError(error);
+  const fieldErrors = flat.fieldErrors as Record<string, string[]>;
+  // Prefer a specific complaint over the generic one — a nested list renders its
+  // message in a banner, where "check the highlighted fields" highlights nothing.
+  const firstField = Object.values(fieldErrors).find((messages) => messages?.length)?.[0];
   return {
-    message: flat.formErrors[0] ?? "Please correct the highlighted fields.",
-    fieldErrors: flat.fieldErrors as Record<string, string[]>,
+    message: flat.formErrors[0] ?? firstField ?? "Please correct the highlighted fields.",
+    fieldErrors,
   };
 }

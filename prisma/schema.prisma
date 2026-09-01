@@ -93,19 +93,73 @@ model Patient {
   relationship Relationship @default(OTHER)
   bloodType    BloodType    @default(UNKNOWN)
 
-  allergies         String?
-  chronicConditions String?
-  contactNumber     String?
-  email             String?
+  /// Whether the list below has been taken, is known to be empty, or was never
+  /// asked. "No known allergies" and "not asked yet" are different facts, and a
+  /// bare empty list cannot tell them apart.
+  allergyStatus   ClinicalListStatus @default(UNKNOWN)
+  conditionStatus ClinicalListStatus @default(UNKNOWN)
+
+  contactNumber String?
+  email         String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   appointments   Appointment[]
   medicalRecords MedicalRecord[]
+  allergies      PatientAllergy[]
+  conditions     PatientCondition[]
 
   @@index([householdId])
   @@index([lastName, firstName])
+}
+
+/// Whether a clinical list has been taken at all.
+enum ClinicalListStatus {
+  /// The list below is what the patient reported.
+  RECORDED
+  /// Asked, and there are none.
+  NONE_KNOWN
+  /// Not asked yet — the default, so nothing reads as "safe" by omission.
+  UNKNOWN
+}
+
+enum AllergySeverity {
+  MILD
+  MODERATE
+  SEVERE
+}
+
+/// One allergy. `label` is free text so a doctor is never blocked by the
+/// catalogue; the picker offers the common ones and accepts anything else.
+model PatientAllergy {
+  id        String  @id @default(cuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  label    String
+  reaction String?
+  severity AllergySeverity?
+  notes    String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([patientId, label])
+  @@index([patientId])
+}
+
+model PatientCondition {
+  id        String  @id @default(cuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  label String
+  notes String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([patientId, label])
+  @@index([patientId])
 }
 
 enum AppointmentStatus {

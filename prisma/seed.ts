@@ -2,10 +2,12 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
 import {
+  AllergySeverity,
   AppointmentStatus,
   AppointmentType,
   BookingSource,
   BloodType,
+  ClinicalListStatus,
   Relationship,
   ServiceType,
   Sex,
@@ -65,8 +67,12 @@ async function main() {
             sex: Sex.MALE,
             relationship: Relationship.HEAD,
             bloodType: BloodType.O_POS,
-            chronicConditions: "Hypertension, diagnosed 2021. On amlodipine 5 mg.",
             contactNumber: "0917 442 1180",
+            allergyStatus: ClinicalListStatus.NONE_KNOWN,
+            conditionStatus: ClinicalListStatus.RECORDED,
+            conditions: {
+              create: [{ label: "Hypertension", notes: "Diagnosed 2021. On amlodipine 5 mg." }],
+            },
           },
           {
             firstName: "Marilou",
@@ -76,7 +82,17 @@ async function main() {
             sex: Sex.FEMALE,
             relationship: Relationship.SPOUSE,
             bloodType: BloodType.A_POS,
-            allergies: "Penicillin — urticaria and facial swelling, 2015.",
+            allergyStatus: ClinicalListStatus.RECORDED,
+            allergies: {
+              create: [
+                {
+                  label: "Penicillin",
+                  reaction: "Urticaria and facial swelling",
+                  severity: AllergySeverity.SEVERE,
+                  notes: "First noted 2015.",
+                },
+              ],
+            },
           },
           {
             firstName: "Joaquin",
@@ -85,7 +101,17 @@ async function main() {
             sex: Sex.MALE,
             relationship: Relationship.CHILD,
             bloodType: BloodType.O_POS,
-            chronicConditions: "Mild intermittent asthma. Salbutamol inhaler as needed.",
+            allergyStatus: ClinicalListStatus.RECORDED,
+            allergies: {
+              create: [
+                { label: "Dust", reaction: "Sneezing, worse at night", severity: AllergySeverity.MILD },
+                { label: "Pollen", severity: AllergySeverity.MILD },
+              ],
+            },
+            conditionStatus: ClinicalListStatus.RECORDED,
+            conditions: {
+              create: [{ label: "Asthma", notes: "Mild intermittent. Salbutamol inhaler as needed." }],
+            },
           },
           {
             firstName: "Sofia",
@@ -94,6 +120,8 @@ async function main() {
             sex: Sex.FEMALE,
             relationship: Relationship.CHILD,
             bloodType: BloodType.UNKNOWN,
+            allergyStatus: ClinicalListStatus.NONE_KNOWN,
+            conditionStatus: ClinicalListStatus.NONE_KNOWN,
           },
           {
             firstName: "Corazon",
@@ -102,8 +130,20 @@ async function main() {
             sex: Sex.FEMALE,
             relationship: Relationship.GRANDPARENT,
             bloodType: BloodType.B_POS,
-            chronicConditions: "Type 2 diabetes, osteoarthritis of both knees.",
-            allergies: "Sulfa drugs — rash.",
+            allergyStatus: ClinicalListStatus.RECORDED,
+            allergies: {
+              create: [
+                { label: "Sulfa drugs", reaction: "Rash", severity: AllergySeverity.MODERATE },
+                { label: "Shellfish", reaction: "Lip swelling", severity: AllergySeverity.MILD },
+              ],
+            },
+            conditionStatus: ClinicalListStatus.RECORDED,
+            conditions: {
+              create: [
+                { label: "Diabetes", notes: "Type 2, on metformin." },
+                { label: "Arthritis", notes: "Osteoarthritis of both knees." },
+              ],
+            },
           },
         ],
       },
@@ -129,6 +169,14 @@ async function main() {
             relationship: Relationship.HEAD,
             bloodType: BloodType.AB_NEG,
             contactNumber: "0918 220 7741",
+            allergyStatus: ClinicalListStatus.RECORDED,
+            allergies: {
+              create: [{ label: "Latex", reaction: "Contact dermatitis", severity: AllergySeverity.MILD }],
+            },
+            conditionStatus: ClinicalListStatus.RECORDED,
+            conditions: {
+              create: [{ label: "Iron-deficiency anaemia", notes: "Typed in — not in the suggestion list." }],
+            },
           },
           {
             firstName: "Miguel",
