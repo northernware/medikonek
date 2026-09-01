@@ -1,0 +1,193 @@
+// MEDIKONEK — clinical records for family practice.
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// A doctor account. Every family, appointment and record is scoped to one.
+model Doctor {
+  id            String  @id @default(cuid())
+  email         String  @unique
+  passwordHash  String
+  fullName      String
+  specialty     String?
+  licenseNumber String?
+  clinicName    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  families       Family[]
+  appointments   Appointment[]
+  medicalRecords MedicalRecord[]
+}
+
+/// A household. Patients are grouped under one so shared history — address,
+/// hereditary conditions, an outbreak running through the house — stays visible.
+model Family {
+  id       String @id @default(cuid())
+  doctorId String
+  doctor   Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  name          String // e.g. "Dela Cruz"
+  address       String?
+  contactNumber String?
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patients Patient[]
+
+  @@unique([doctorId, name])
+  @@index([doctorId])
+}
+
+enum Relationship {
+  HEAD
+  SPOUSE
+  CHILD
+  PARENT
+  SIBLING
+  GRANDPARENT
+  OTHER
+}
+
+enum Sex {
+  MALE
+  FEMALE
+}
+
+enum BloodType {
+  A_POS
+  A_NEG
+  B_POS
+  B_NEG
+  AB_POS
+  AB_NEG
+  O_POS
+  O_NEG
+  UNKNOWN
+}
+
+model Patient {
+  id       String @id @default(cuid())
+  familyId String
+  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  firstName  String
+  middleName String?
+  lastName   String
+
+  dateOfBirth  DateTime     @db.Date
+  sex          Sex
+  relationship Relationship @default(OTHER)
+  bloodType    BloodType    @default(UNKNOWN)
+
+  allergies         String?
+  chronicConditions String?
+  contactNumber     String?
+  email             String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appointments   Appointment[]
+  medicalRecords MedicalRecord[]
+
+  @@index([familyId])
+  @@index([lastName, firstName])
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Appointment {
+  id        String  @id @default(cuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId  String
+  doctor    Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  scheduledAt     DateTime
+  durationMinutes Int               @default(30)
+  reason          String
+  status          AppointmentStatus @default(SCHEDULED)
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Filled in when the visit is documented.
+  medicalRecord MedicalRecord?
+
+  @@index([doctorId, scheduledAt])
+  @@index([patientId])
+}
+
+/// One encounter: what was complained of, what was measured, what was decided.
+model MedicalRecord {
+  id        String  @id @default(cuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId  String
+  doctor    Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  /// Set when the encounter came from a booked appointment.
+  appointmentId String?      @unique
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  visitDate DateTime @default(now())
+
+  chiefComplaint          String
+  historyOfPresentIllness String?
+
+  // Vitals — all optional; a doctor records what they took.
+  temperatureC     Float?
+  heartRate        Int?
+  respiratoryRate  Int?
+  systolic         Int?
+  diastolic        Int?
+  weightKg         Float?
+  heightCm         Float?
+  oxygenSaturation Int?
+
+  assessment    String?
+  treatmentPlan String?
+  followUpDate  DateTime? @db.Date
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  prescriptions Prescription[]
+
+  @@index([patientId, visitDate])
+  @@index([doctorId])
+}
+
+model Prescription {
+  id              String        @id @default(cuid())
+  medicalRecordId String
+  medicalRecord   MedicalRecord @relation(fields: [medicalRecordId], references: [id], onDelete: Cascade)
+
+  drugName     String
+  dosage       String
+  frequency    String
+  duration     String?
+  instructions String?
+
+  createdAt DateTime @default(now())
+
+  @@index([medicalRecordId])
+}

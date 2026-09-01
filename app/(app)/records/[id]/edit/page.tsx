@@ -1,0 +1,78 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { updateMedicalRecord } from "@/app/actions/records";
+import { requireDoctor } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { formatDateTime, toDateInputValue, toDateTimeLocalValue } from "@/lib/datetime";
+import { fullName } from "@/lib/domain";
+import { RecordForm } from "@/components/forms/record-form";
+import { Card, PageHeader } from "@/components/ui";
+
+export const metadata: Metadata = { title: "Edit record" };
+
+/** Prisma nulls become the empty strings the form's inputs expect. */
+const text = (v: string | null) => v ?? "";
+const num = (v: number | null) => (v == null ? "" : String(v));
+
+export default async function EditRecordPage({ params }: PageProps<"/records/[id]/edit">) {
+  const doctor = await requireDoctor();
+  const { id } = await params;
+
+  const record = await prisma.medicalRecord.findFirst({
+    where: { id, doctorId: doctor.id },
+    include: {
+      patient: { select: { id: true, firstName: true, middleName: true, lastName: true } },
+      appointment: { select: { id: true, scheduledAt: true, reason: true } },
+      prescriptions: { orderBy: { createdAt: "asc" } },
+    },
+  });
+  if (!record) notFound();
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Edit record" subtitle={fullName(record.patient)} />
+      <Card className="p-5 sm:p-6">
+        <RecordForm
+          action={updateMedicalRecord.bind(null, record.id)}
+          patientId={record.patientId}
+          openAppointments={[]}
+          lockedAppointment={
+            record.appointment
+              ? {
+                  id: record.appointment.id,
+                  label: `${formatDateTime(record.appointment.scheduledAt)} — ${record.appointment.reason}`,
+                }
+              : undefined
+          }
+          defaults={{
+            visitDate: toDateTimeLocalValue(record.visitDate),
+            appointmentId: record.appointmentId ?? "",
+            chiefComplaint: record.chiefComplaint,
+            historyOfPresentIllness: text(record.historyOfPresentIllness),
+            temperatureC: num(record.temperatureC),
+            heartRate: num(record.heartRate),
+            respiratoryRate: num(record.respiratoryRate),
+            systolic: num(record.systolic),
+            diastolic: num(record.diastolic),
+            weightKg: num(record.weightKg),
+            heightCm: num(record.heightCm),
+            oxygenSaturation: num(record.oxygenSaturation),
+            assessment: text(record.assessment),
+            treatmentPlan: text(record.treatmentPlan),
+            followUpDate: record.followUpDate ? toDateInputValue(record.followUpDate) : "",
+            notes: text(record.notes),
+            prescriptions: record.prescriptions.map((rx) => ({
+              drugName: rx.drugName,
+              dosage: rx.dosage,
+              frequency: rx.frequency,
+              duration: text(rx.duration),
+              instructions: text(rx.instructions),
+            })),
+          }}
+          submitLabel="Save changes"
+          cancelHref={`/records/${record.id}`}
+        />
+      </Card>
+    </div>
+  );
+}
