@@ -4,14 +4,14 @@
  * a function exported from a client module cannot be called on the server.
  */
 
-export type FamilyDefaults = {
+export type HouseholdDefaults = {
   name: string;
   address: string;
   contactNumber: string;
   notes: string;
 };
 
-export const BLANK_FAMILY: FamilyDefaults = {
+export const BLANK_HOUSEHOLD: HouseholdDefaults = {
   name: "",
   address: "",
   contactNumber: "",
@@ -19,7 +19,7 @@ export const BLANK_FAMILY: FamilyDefaults = {
 };
 
 export type PatientDefaults = {
-  familyId: string;
+  householdId: string;
   firstName: string;
   middleName: string;
   lastName: string;
@@ -33,9 +33,9 @@ export type PatientDefaults = {
   email: string;
 };
 
-export function blankPatient(familyId: string): PatientDefaults {
+export function blankPatient(householdId: string): PatientDefaults {
   return {
-    familyId,
+    householdId,
     firstName: "",
     middleName: "",
     lastName: "",
@@ -69,7 +69,7 @@ export type AppointmentDefaults = {
   internalNotes: string;
 };
 
-export type PatientOption = { id: string; label: string; familyName: string };
+export type PatientOption = { id: string; label: string; householdName: string };
 
 /** Past visits a booking can be marked as following on from, keyed by patient. */
 export type FollowUpOptions = Record<string, { id: string; label: string }[]>;

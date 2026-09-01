@@ -59,7 +59,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           firstName: true,
           middleName: true,
           lastName: true,
-          family: { select: { name: true } },
+          household: { select: { name: true } },
         },
       },
     },
@@ -92,7 +92,9 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   ).length;
 
   return (
-    <div className="space-y-6">
+    // The month grid earns more width than the rest of the app, so on wide
+    // screens this page reaches past the shell’s max-width.
+    <div className="space-y-6 xl:-mx-12 2xl:-mx-28">
       <PageHeader
         title="Calendar"
         subtitle={`${appointments.length} booked across ${bookedDays} ${bookedDays === 1 ? "day" : "days"} this month`}
@@ -106,7 +108,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         }
       />
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
         <Card>
           <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
             <Link
@@ -160,7 +162,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                   href={`/calendar?month=${cell.inMonth ? monthPrefix : cell.key.slice(0, 7)}&day=${cell.key}`}
                   aria-current={isSelected ? "date" : undefined}
                   className={[
-                    "min-h-18 border-r border-b border-border p-1.5 text-left transition-colors sm:min-h-26",
+                    "min-h-22 border-r border-b border-border p-2 text-left transition-colors sm:min-h-34",
                     "[&:nth-child(7n)]:border-r-0 hover:bg-surface-muted",
                     cell.inMonth ? "" : "bg-surface-muted/40 text-ink-faint",
                     isSelected ? "ring-2 ring-accent ring-inset" : "",
@@ -168,7 +170,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                 >
                   <span
                     className={[
-                      "tabular inline-grid size-6 place-items-center rounded-full text-xs font-medium",
+                      "tabular inline-grid size-7 place-items-center rounded-full text-sm font-medium",
                       isToday ? "bg-accent text-on-accent" : cell.inMonth ? "text-ink" : "",
                     ].join(" ")}
                   >
@@ -179,16 +181,16 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                     <>
                       {/* Phones get density dots; there is no room for times. */}
                       <span className="mt-1 flex flex-wrap gap-1 sm:hidden">
-                        {items.slice(0, 4).map((a) => (
+                        {items.slice(0, 6).map((a) => (
                           <span key={a.id} className={`size-1.5 rounded-full ${DOT_TONE[a.status]}`} />
                         ))}
                       </span>
 
                       <span className="mt-1 hidden flex-col gap-0.5 sm:flex">
-                        {items.slice(0, 3).map((a) => (
+                        {items.slice(0, 5).map((a) => (
                           <span
                             key={a.id}
-                            className="flex items-center gap-1 overflow-hidden text-[11px] leading-tight"
+                            className="flex items-center gap-1.5 overflow-hidden text-xs leading-snug"
                           >
                             <span className={`size-1.5 shrink-0 rounded-full ${DOT_TONE[a.status]}`} />
                             <span className="tabular shrink-0 font-medium">
@@ -197,9 +199,9 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                             <span className="truncate text-ink-muted">{a.patient.lastName}</span>
                           </span>
                         ))}
-                        {items.length > 3 ? (
-                          <span className="text-[11px] leading-tight text-ink-faint">
-                            +{items.length - 3} more
+                        {items.length > 5 ? (
+                          <span className="text-xs leading-snug text-ink-faint">
+                            +{items.length - 5} more
                           </span>
                         ) : null}
                       </span>
@@ -266,7 +268,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                       {SERVICE_LABELS[a.service]} · {a.durationMinutes} min
                     </span>
                     <span className="block truncate text-xs text-ink-faint">
-                      {a.patient.family.name} · {a.reason}
+                      {a.patient.household.name} · {a.reason}
                     </span>
                   </Link>
                 </li>

@@ -19,7 +19,7 @@ export default async function NewRecordPage({ searchParams }: PageProps<"/record
   if (typeof patientId !== "string") notFound();
 
   const patient = await prisma.patient.findFirst({
-    where: { id: patientId, family: { doctorId: doctor.id } },
+    where: { id: patientId, household: { doctorId: doctor.id } },
     select: {
       id: true,
       firstName: true,
@@ -28,7 +28,7 @@ export default async function NewRecordPage({ searchParams }: PageProps<"/record
       dateOfBirth: true,
       sex: true,
       allergies: true,
-      family: { select: { id: true, name: true } },
+      household: { select: { id: true, name: true } },
     },
   });
   if (!patient) notFound();
@@ -61,7 +61,7 @@ export default async function NewRecordPage({ searchParams }: PageProps<"/record
               {fullName(patient)}
             </Link>
             {" · "}
-            {SEX_LABELS[patient.sex]} · {ageFrom(patient.dateOfBirth)} · {patient.family.name} family
+            {SEX_LABELS[patient.sex]} · {ageFrom(patient.dateOfBirth)} · {patient.household.name} household
           </>
         }
       />

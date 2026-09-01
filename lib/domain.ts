@@ -11,7 +11,7 @@ import type {
 } from "@/app/generated/prisma/enums";
 
 export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
-  HEAD: "Head of family",
+  HEAD: "Head of household",
   SPOUSE: "Spouse",
   CHILD: "Child",
   PARENT: "Parent",
@@ -212,7 +212,7 @@ export const SERVICE_MINUTES = Object.fromEntries(
 /** A compact form for tight spots — calendar cells, list rows. */
 export const SERVICE_SHORT_LABELS: Record<ServiceType, string> = {
   GENERAL_CONSULTATION: "General",
-  FAMILY_CHECKUP: "Family",
+  FAMILY_CHECKUP: "Household",
   FOLLOW_UP_CHECKUP: "Follow-up",
   ROUTINE_PHYSICAL_EXAM: "Physical exam",
   PEDIATRIC_CONSULTATION: "Pediatric",

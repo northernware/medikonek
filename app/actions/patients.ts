@@ -7,13 +7,13 @@ import { prisma } from "@/lib/prisma";
 import { fromDateInputValue } from "@/lib/datetime";
 import { patientSchema, toFieldErrors, type FormState } from "@/lib/validation";
 
-/** Confirms the family belongs to the signed-in doctor before anything is written. */
-async function assertOwnsFamily(doctorId: string, familyId: string) {
-  const family = await prisma.family.findFirst({
-    where: { id: familyId, doctorId },
+/** Confirms the household belongs to the signed-in doctor before anything is written. */
+async function assertOwnsHousehold(doctorId: string, householdId: string) {
+  const household = await prisma.household.findFirst({
+    where: { id: householdId, doctorId },
     select: { id: true },
   });
-  return family !== null;
+  return household !== null;
 }
 
 export async function createPatient(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -21,9 +21,9 @@ export async function createPatient(_prev: FormState, formData: FormData): Promi
   const parsed = patientSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return toFieldErrors(parsed.error);
 
-  const { familyId, dateOfBirth, ...rest } = parsed.data;
-  if (!(await assertOwnsFamily(doctor.id, familyId))) {
-    return { message: "That family is not on your list." };
+  const { householdId, dateOfBirth, ...rest } = parsed.data;
+  if (!(await assertOwnsHousehold(doctor.id, householdId))) {
+    return { message: "That household is not on your list." };
   }
 
   const dob = fromDateInputValue(dateOfBirth);
@@ -32,11 +32,11 @@ export async function createPatient(_prev: FormState, formData: FormData): Promi
   }
 
   const patient = await prisma.patient.create({
-    data: { ...rest, familyId, dateOfBirth: dob },
+    data: { ...rest, householdId, dateOfBirth: dob },
     select: { id: true },
   });
 
-  revalidatePath(`/families/${familyId}`);
+  revalidatePath(`/households/${householdId}`);
   revalidatePath("/patients");
   redirect(`/patients/${patient.id}`);
 }
@@ -50,9 +50,9 @@ export async function updatePatient(
   const parsed = patientSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return toFieldErrors(parsed.error);
 
-  const { familyId, dateOfBirth, ...rest } = parsed.data;
-  if (!(await assertOwnsFamily(doctor.id, familyId))) {
-    return { message: "That family is not on your list." };
+  const { householdId, dateOfBirth, ...rest } = parsed.data;
+  if (!(await assertOwnsHousehold(doctor.id, householdId))) {
+    return { message: "That household is not on your list." };
   }
 
   const dob = fromDateInputValue(dateOfBirth);
@@ -61,14 +61,14 @@ export async function updatePatient(
   }
 
   const { count } = await prisma.patient.updateMany({
-    where: { id: patientId, family: { doctorId: doctor.id } },
-    data: { ...rest, familyId, dateOfBirth: dob },
+    where: { id: patientId, household: { doctorId: doctor.id } },
+    data: { ...rest, householdId, dateOfBirth: dob },
   });
   if (count === 0) return { message: "That patient no longer exists." };
 
   revalidatePath("/patients");
   revalidatePath(`/patients/${patientId}`);
-  revalidatePath(`/families/${familyId}`);
+  revalidatePath(`/households/${householdId}`);
   redirect(`/patients/${patientId}`);
 }
 
@@ -78,14 +78,14 @@ export async function deletePatient(formData: FormData) {
   if (!patientId) return;
 
   const patient = await prisma.patient.findFirst({
-    where: { id: patientId, family: { doctorId: doctor.id } },
-    select: { familyId: true },
+    where: { id: patientId, household: { doctorId: doctor.id } },
+    select: { householdId: true },
   });
   if (!patient) return;
 
   await prisma.patient.delete({ where: { id: patientId } });
 
   revalidatePath("/patients");
-  revalidatePath(`/families/${patient.familyId}`);
-  redirect(`/families/${patient.familyId}`);
+  revalidatePath(`/households/${patient.householdId}`);
+  redirect(`/households/${patient.householdId}`);
 }

@@ -76,17 +76,17 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-// --- Families and patients --------------------------------------------------
+// --- Households and patients --------------------------------------------------
 
-export const familySchema = z.object({
-  name: requiredText("Family name", 120),
+export const householdSchema = z.object({
+  name: requiredText("Household name", 120),
   address: optionalText(300),
   contactNumber: optionalText(40),
   notes: optionalText(2000),
 });
 
 export const patientSchema = z.object({
-  familyId: requiredText("Family", 40),
+  householdId: requiredText("Household", 40),
   firstName: requiredText("First name", 80),
   middleName: optionalText(80),
   lastName: requiredText("Last name", 80),

@@ -11,7 +11,7 @@ export default async function DashboardPage() {
   const now = new Date();
   const today = clinicDayRange(now);
 
-  const [todaysAppointments, upcomingCount, familyCount, patientCount, recentRecords] =
+  const [todaysAppointments, upcomingCount, householdCount, patientCount, recentRecords] =
     await Promise.all([
       prisma.appointment.findMany({
         where: { doctorId: doctor.id, scheduledAt: { gte: today.start, lt: today.end } },
@@ -25,8 +25,8 @@ export default async function DashboardPage() {
           status: { in: ACTIVE_STATUSES },
         },
       }),
-      prisma.family.count({ where: { doctorId: doctor.id } }),
-      prisma.patient.count({ where: { family: { doctorId: doctor.id } } }),
+      prisma.household.count({ where: { doctorId: doctor.id } }),
+      prisma.patient.count({ where: { household: { doctorId: doctor.id } } }),
       prisma.medicalRecord.findMany({
         where: { doctorId: doctor.id },
         orderBy: { visitDate: "desc" },
@@ -56,8 +56,8 @@ export default async function DashboardPage() {
             <Link href="/appointments/new" className={buttonClass("primary")}>
               Book appointment
             </Link>
-            <Link href="/families/new" className={buttonClass("secondary")}>
-              New family
+            <Link href="/households/new" className={buttonClass("secondary")}>
+              New household
             </Link>
           </>
         }
@@ -70,7 +70,7 @@ export default async function DashboardPage() {
           hint={remaining > 0 ? `${remaining} still to come` : "Nothing left today"}
         />
         <Stat label="Upcoming" value={upcomingCount} hint="Booked after today" />
-        <Stat label="Families" value={familyCount} />
+        <Stat label="Households" value={householdCount} />
         <Stat label="Patients" value={patientCount} />
       </div>
 

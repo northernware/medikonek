@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: PageProps<"/patients/[id]">):
   const doctor = await requireDoctor();
   const { id } = await params;
   const patient = await prisma.patient.findFirst({
-    where: { id, family: { doctorId: doctor.id } },
+    where: { id, household: { doctorId: doctor.id } },
     select: { firstName: true, middleName: true, lastName: true },
   });
   return { title: patient ? fullName(patient) : "Patient" };
@@ -32,9 +32,9 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
   const { id } = await params;
 
   const patient = await prisma.patient.findFirst({
-    where: { id, family: { doctorId: doctor.id } },
+    where: { id, household: { doctorId: doctor.id } },
     include: {
-      family: { select: { id: true, name: true, contactNumber: true } },
+      household: { select: { id: true, name: true, contactNumber: true } },
       medicalRecords: {
         orderBy: { visitDate: "desc" },
         select: {
@@ -66,8 +66,8 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
         title={fullName(patient)}
         subtitle={
           <>
-            <Link href={`/families/${patient.family.id}`} className="text-accent-ink hover:underline">
-              {patient.family.name} family
+            <Link href={`/households/${patient.household.id}`} className="text-accent-ink hover:underline">
+              {patient.household.name} household
             </Link>
             {" · "}
             {RELATIONSHIP_LABELS[patient.relationship]} · {SEX_LABELS[patient.sex]} ·{" "}
@@ -100,7 +100,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
         <dl className="grid gap-4 sm:grid-cols-3">
           <Detail label="Date of birth" value={formatCalendarDate(patient.dateOfBirth)} />
           <Detail label="Blood type" value={BLOOD_TYPE_LABELS[patient.bloodType]} />
-          <Detail label="Contact" value={patient.contactNumber ?? patient.family.contactNumber} />
+          <Detail label="Contact" value={patient.contactNumber ?? patient.household.contactNumber} />
           <Detail label="Email" value={patient.email} />
           <Detail
             label="Chronic conditions"

@@ -21,7 +21,7 @@ export type AppointmentListItem = {
     firstName: string;
     middleName: string | null;
     lastName: string;
-    family: { id: string; name: string };
+    household: { id: string; name: string };
   };
   medicalRecord: { id: string } | null;
 };
@@ -91,7 +91,7 @@ function AppointmentRow({ appointment }: { appointment: AppointmentListItem }) {
             </span>
           </span>
           <span className="block truncate text-sm text-ink-muted">
-            {patient.family.name} · {appointment.reason}
+            {patient.household.name} · {appointment.reason}
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-2">
@@ -113,7 +113,7 @@ export const APPOINTMENT_LIST_INCLUDE = {
       firstName: true,
       middleName: true,
       lastName: true,
-      family: { select: { id: true, name: true } },
+      household: { select: { id: true, name: true } },
     },
   },
   medicalRecord: { select: { id: true } },

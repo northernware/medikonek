@@ -47,7 +47,7 @@ async function main() {
     },
   });
 
-  const delaCruz = await prisma.family.create({
+  const delaCruz = await prisma.household.create({
     data: {
       doctorId: doctor.id,
       name: "Dela Cruz",
@@ -111,7 +111,7 @@ async function main() {
     include: { patients: true },
   });
 
-  const villanueva = await prisma.family.create({
+  const villanueva = await prisma.household.create({
     data: {
       doctorId: doctor.id,
       name: "Villanueva",
@@ -144,8 +144,8 @@ async function main() {
     include: { patients: true },
   });
 
-  const byName = (family: { patients: { id: string; firstName: string }[] }, first: string) =>
-    family.patients.find((p) => p.firstName === first)!.id;
+  const byName = (household: { patients: { id: string; firstName: string }[] }, first: string) =>
+    household.patients.find((p) => p.firstName === first)!.id;
 
   const ramon = byName(delaCruz, "Ramon");
   const marilou = byName(delaCruz, "Marilou");

@@ -27,7 +27,7 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
           dateOfBirth: true,
           sex: true,
           allergies: true,
-          family: { select: { id: true, name: true } },
+          household: { select: { id: true, name: true } },
         },
       },
       appointment: { select: { id: true, scheduledAt: true, reason: true } },

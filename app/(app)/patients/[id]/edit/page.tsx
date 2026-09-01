@@ -15,11 +15,11 @@ export default async function EditPatientPage({ params }: PageProps<"/patients/[
   const { id } = await params;
 
   const patient = await prisma.patient.findFirst({
-    where: { id, family: { doctorId: doctor.id } },
+    where: { id, household: { doctorId: doctor.id } },
   });
   if (!patient) notFound();
 
-  const families = await prisma.family.findMany({
+  const households = await prisma.household.findMany({
     where: { doctorId: doctor.id },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
@@ -33,9 +33,9 @@ export default async function EditPatientPage({ params }: PageProps<"/patients/[
       <Card className="p-5 sm:p-6">
         <PatientForm
           action={action}
-          families={families}
+          households={households}
           defaults={{
-            familyId: patient.familyId,
+            householdId: patient.householdId,
             firstName: patient.firstName,
             middleName: patient.middleName ?? "",
             lastName: patient.lastName,

@@ -4,17 +4,17 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { Field, FormError, SubmitButton, TextArea, TextInput } from "@/components/form";
 import { buttonClass } from "@/components/ui";
-import { BLANK_FAMILY, type FamilyDefaults } from "@/lib/form-defaults";
+import { BLANK_HOUSEHOLD, type HouseholdDefaults } from "@/lib/form-defaults";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/validation";
 
-export function FamilyForm({
+export function HouseholdForm({
   action,
-  defaults = BLANK_FAMILY,
+  defaults = BLANK_HOUSEHOLD,
   submitLabel,
   cancelHref,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
-  defaults?: FamilyDefaults;
+  defaults?: HouseholdDefaults;
   submitLabel: string;
   cancelHref: string;
 }) {
@@ -26,7 +26,7 @@ export function FamilyForm({
       <FormError message={state.message} />
 
       <Field
-        label="Family name"
+        label="Household name"
         htmlFor="name"
         error={err?.name}
         hint="Usually the surname — how you'd say it aloud in the waiting room."
@@ -59,7 +59,7 @@ export function FamilyForm({
         label="Notes"
         htmlFor="notes"
         error={err?.notes}
-        hint="Household context worth carrying across visits — hereditary conditions, living situation, who to call."
+        hint="Context worth carrying across every member’s visits — hereditary conditions, living situation, who to call."
       >
         <TextArea id="notes" name="notes" rows={4} defaultValue={defaults.notes} />
       </Field>

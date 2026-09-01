@@ -5,14 +5,14 @@ import { prisma } from "@/lib/prisma";
 import { buttonClass, Card, EmptyState, PageHeader } from "@/components/ui";
 import { SearchForm } from "@/components/search-form";
 
-export const metadata: Metadata = { title: "Families" };
+export const metadata: Metadata = { title: "Households" };
 
-export default async function FamiliesPage({ searchParams }: PageProps<"/families">) {
+export default async function HouseholdsPage({ searchParams }: PageProps<"/households">) {
   const doctor = await requireDoctor();
   const { q } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
 
-  const families = await prisma.family.findMany({
+  const households = await prisma.household.findMany({
     where: {
       doctorId: doctor.id,
       ...(query
@@ -38,21 +38,21 @@ export default async function FamiliesPage({ searchParams }: PageProps<"/familie
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Families"
-        subtitle="Every patient belongs to a household. Start here."
+        title="Households"
+        subtitle="Every patient belongs to one. Each keeps their own record — the grouping links relatives, shared contact details and hereditary risk."
         actions={
-          <Link href="/families/new" className={buttonClass("primary")}>
-            New family
+          <Link href="/households/new" className={buttonClass("primary")}>
+            New household
           </Link>
         }
       />
 
-      <SearchForm action="/families" placeholder="Search families or surnames" defaultValue={query} />
+      <SearchForm action="/households" placeholder="Search households or surnames" defaultValue={query} />
 
       <Card>
-        {families.length === 0 ? (
+        {households.length === 0 ? (
           <EmptyState
-            title={query ? `No families match “${query}”` : "No families yet"}
+            title={query ? `No households match “${query}”` : "No households yet"}
             description={
               query
                 ? "Try a shorter search, or clear it to see everyone."
@@ -60,30 +60,30 @@ export default async function FamiliesPage({ searchParams }: PageProps<"/familie
             }
             action={
               query ? (
-                <Link href="/families" className={buttonClass("secondary")}>
+                <Link href="/households" className={buttonClass("secondary")}>
                   Clear search
                 </Link>
               ) : (
-                <Link href="/families/new" className={buttonClass("primary")}>
-                  New family
+                <Link href="/households/new" className={buttonClass("primary")}>
+                  New household
                 </Link>
               )
             }
           />
         ) : (
           <ul className="divide-y divide-border">
-            {families.map((family) => (
-              <li key={family.id} className="transition-colors hover:bg-surface-muted">
-                <Link href={`/families/${family.id}`} className="flex items-baseline gap-4 px-5 py-4">
+            {households.map((household) => (
+              <li key={household.id} className="transition-colors hover:bg-surface-muted">
+                <Link href={`/households/${household.id}`} className="flex items-baseline gap-4 px-5 py-4">
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{family.name}</span>
+                    <span className="block truncate font-medium">{household.name}</span>
                     <span className="block truncate text-sm text-ink-muted">
-                      {family.address || family.contactNumber || "No address on file"}
+                      {household.address || household.contactNumber || "No address on file"}
                     </span>
                   </span>
                   <span className="tabular shrink-0 text-sm text-ink-muted">
-                    {family._count.patients}{" "}
-                    {family._count.patients === 1 ? "member" : "members"}
+                    {household._count.patients}{" "}
+                    {household._count.patients === 1 ? "member" : "members"}
                   </span>
                 </Link>
               </li>

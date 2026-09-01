@@ -11,13 +11,13 @@ import { EMPTY_FORM_STATE, type FormState } from "@/lib/validation";
 export function PatientForm({
   action,
   defaults,
-  families,
+  households,
   submitLabel,
   cancelHref,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   defaults: PatientDefaults;
-  families: { id: string; name: string }[];
+  households: { id: string; name: string }[];
   submitLabel: string;
   cancelHref: string;
 }) {
@@ -30,9 +30,9 @@ export function PatientForm({
 
       <section className="space-y-4">
         <FieldGrid>
-          <Field label="Family" htmlFor="familyId" error={err?.familyId} required>
-            <Select id="familyId" name="familyId" defaultValue={defaults.familyId} required>
-              {families.map((f) => (
+          <Field label="Household" htmlFor="householdId" error={err?.householdId} required>
+            <Select id="householdId" name="householdId" defaultValue={defaults.householdId} required>
+              {households.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}
                 </option>

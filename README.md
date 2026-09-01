@@ -2,11 +2,17 @@
 
 Appointments and medical records for family practice, organised by household.
 
-A doctor signs in, creates a **family**, adds its members as **patients**, books
-**appointments** against one of fifteen services, and documents each visit as a
-**medical record** with vitals, assessment, plan and prescriptions. A month
+A doctor signs in, creates a **household**, adds its members as **patients**,
+books **appointments** against one of fifteen services, and documents each visit
+as a **medical record** with vitals, assessment, plan and prescriptions. A month
 **calendar** shows which days are booked and at what times. Everything a doctor
 creates is visible only to that doctor.
+
+Every patient keeps their own record, appointment history, diagnoses and
+prescriptions. The household is a grouping, not a merged chart — it exists so a
+doctor can find relatives quickly, schedule a family checkup, see hereditary
+risk, record how members relate to one another, and hold one shared address and
+contact number.
 
 ## Stack
 
@@ -68,7 +74,7 @@ app/
   (app)/             everything behind the session gate
     page.tsx         today's clinic, counts, recently documented
     calendar/        month grid of booked days and times, plus a day panel
-    families/        list, create, edit, household detail, add a member
+    households/      list, create, edit, household detail, add a member
     patients/        list, chart, edit
     appointments/    list (upcoming/past/all), booking, detail, reschedule
     records/         document a visit, view, edit
@@ -85,8 +91,8 @@ components/          UI kit, shared lists, and the four forms
 
 ### Data model
 
-`Doctor → Family → Patient`, with `Appointment` and `MedicalRecord` hanging off a
-patient and `Prescription` off a record. A record optionally links to the
+`Doctor → Household → Patient`, with `Appointment` and `MedicalRecord` hanging
+off a patient and `Prescription` off a record. A record optionally links to the
 appointment it documents; making that link marks the appointment completed.
 
 ### Booking rules
@@ -157,9 +163,13 @@ scopes to the signed-in doctor's own records. A "which doctor" field on booking
 needs a clinic that owns doctors, per-doctor availability, and a rethink of that
 scoping — it is not a dropdown.
 
-**Attending family members.** `FAMILY_CHECKUP` labels the visit but still books
-one patient. Several members in one appointment needs a join table and a
+**Attending household members.** `FAMILY_CHECKUP` labels the visit but still
+books one patient. Several members in one appointment needs a join table and a
 decision about whose record the encounter belongs to.
+
+**A primary contact / guardian per household.** Nothing currently marks which
+member to call, or who is a dependent's guardian — a nullable `primaryContactId`
+on `Household` pointing at one of its `Patient` rows would cover it.
 
 **Attachments** (labs, referral letters, images) need file storage, which the
 app has none of yet.

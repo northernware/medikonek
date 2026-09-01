@@ -12,7 +12,7 @@ import { appointmentSchema, toFieldErrors, type FormState } from "@/lib/validati
 
 async function assertOwnsPatient(doctorId: string, patientId: string) {
   const patient = await prisma.patient.findFirst({
-    where: { id: patientId, family: { doctorId } },
+    where: { id: patientId, household: { doctorId } },
     select: { id: true },
   });
   return patient !== null;

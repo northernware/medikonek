@@ -9,7 +9,7 @@ export default function RegisterPage() {
     <div className="rounded-xl border border-border bg-surface p-6 shadow-card sm:p-8">
       <h1 className="text-xl font-semibold tracking-tight">Register your practice</h1>
       <p className="mt-1 text-sm text-ink-muted">
-        Families, patients and records you create stay visible only to this account.
+        Households, patients and records you create stay visible only to this account.
       </p>
 
       <RegisterForm />

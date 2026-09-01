@@ -48,7 +48,7 @@ export default async function AppointmentPage({ params }: PageProps<"/appointmen
           lastName: true,
           dateOfBirth: true,
           allergies: true,
-          family: { select: { id: true, name: true } },
+          household: { select: { id: true, name: true } },
         },
       },
       medicalRecord: { select: { id: true } },
@@ -72,8 +72,8 @@ export default async function AppointmentPage({ params }: PageProps<"/appointmen
         subtitle={
           <>
             {formatDateTime(appointment.scheduledAt)} · {appointment.durationMinutes} min ·{" "}
-            <Link href={`/families/${patient.family.id}`} className="text-accent-ink hover:underline">
-              {patient.family.name} family
+            <Link href={`/households/${patient.household.id}`} className="text-accent-ink hover:underline">
+              {patient.household.name} household
             </Link>
           </>
         }

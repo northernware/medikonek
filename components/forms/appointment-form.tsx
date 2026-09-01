@@ -86,8 +86,8 @@ export function AppointmentForm({
     setTime("");
   }
 
-  const byFamily = patients.reduce<Record<string, PatientOption[]>>((acc, p) => {
-    (acc[p.familyName] ??= []).push(p);
+  const byHousehold = patients.reduce<Record<string, PatientOption[]>>((acc, p) => {
+    (acc[p.householdName] ??= []).push(p);
     return acc;
   }, {});
 
@@ -102,7 +102,7 @@ export function AppointmentForm({
           label="Patient"
           htmlFor="patientId"
           error={err?.patientId}
-          hint={selectedPatient ? `${selectedPatient.familyName} family` : undefined}
+          hint={selectedPatient ? `${selectedPatient.householdName} household` : undefined}
           required
         >
           <Select
@@ -115,8 +115,8 @@ export function AppointmentForm({
             <option value="" disabled>
               Select a patient…
             </option>
-            {Object.entries(byFamily).map(([family, members]) => (
-              <optgroup key={family} label={family}>
+            {Object.entries(byHousehold).map(([household, members]) => (
+              <optgroup key={household} label={household}>
                 {members.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.label}

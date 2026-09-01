@@ -9,17 +9,17 @@ import { Card, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Add patient" };
 
-export default async function NewFamilyMemberPage({ params }: PageProps<"/families/[id]/patients/new">) {
+export default async function NewHouseholdMemberPage({ params }: PageProps<"/households/[id]/patients/new">) {
   const doctor = await requireDoctor();
   const { id } = await params;
 
-  const family = await prisma.family.findFirst({
+  const household = await prisma.household.findFirst({
     where: { id, doctorId: doctor.id },
     select: { id: true, name: true },
   });
-  if (!family) notFound();
+  if (!household) notFound();
 
-  const families = await prisma.family.findMany({
+  const households = await prisma.household.findMany({
     where: { doctorId: doctor.id },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
@@ -27,14 +27,14 @@ export default async function NewFamilyMemberPage({ params }: PageProps<"/famili
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Add patient" subtitle={`Joining the ${family.name} family`} />
+      <PageHeader title="Add patient" subtitle={`Joining the ${household.name} household`} />
       <Card className="p-5 sm:p-6">
         <PatientForm
           action={createPatient}
-          defaults={blankPatient(family.id)}
-          families={families}
+          defaults={blankPatient(household.id)}
+          households={households}
           submitLabel="Add patient"
-          cancelHref={`/families/${family.id}`}
+          cancelHref={`/households/${household.id}`}
         />
       </Card>
     </div>

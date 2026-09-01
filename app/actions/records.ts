@@ -61,7 +61,7 @@ export async function createMedicalRecord(_prev: FormState, formData: FormData):
   const { patientId, appointmentId, visitDate, followUpDate, ...rest } = parsed.data;
 
   const patient = await prisma.patient.findFirst({
-    where: { id: patientId, family: { doctorId: doctor.id } },
+    where: { id: patientId, household: { doctorId: doctor.id } },
     select: { id: true },
   });
   if (!patient) return { message: "That patient is not on your list." };

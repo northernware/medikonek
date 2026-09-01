@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { deleteFamily } from "@/app/actions/families";
+import { deleteHousehold } from "@/app/actions/households";
 import { requireDoctor } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatCalendarDate } from "@/lib/datetime";
@@ -10,9 +10,9 @@ import { AppointmentList, APPOINTMENT_LIST_INCLUDE } from "@/components/appointm
 import { DangerZone } from "@/components/danger-zone";
 import { Badge, buttonClass, Card, CardHeader, Detail, EmptyState, PageHeader, Prose } from "@/components/ui";
 
-async function loadFamily(doctorId: string, familyId: string) {
-  return prisma.family.findFirst({
-    where: { id: familyId, doctorId },
+async function loadHousehold(doctorId: string, householdId: string) {
+  return prisma.household.findFirst({
+    where: { id: householdId, doctorId },
     include: {
       patients: {
         orderBy: [{ dateOfBirth: "asc" }],
@@ -32,25 +32,25 @@ async function loadFamily(doctorId: string, familyId: string) {
   });
 }
 
-export async function generateMetadata({ params }: PageProps<"/families/[id]">): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps<"/households/[id]">): Promise<Metadata> {
   const doctor = await requireDoctor();
   const { id } = await params;
-  const family = await prisma.family.findFirst({
+  const household = await prisma.household.findFirst({
     where: { id, doctorId: doctor.id },
     select: { name: true },
   });
-  return { title: family ? `${family.name} family` : "Family" };
+  return { title: household ? `${household.name} household` : "Household" };
 }
 
-export default async function FamilyPage({ params }: PageProps<"/families/[id]">) {
+export default async function HouseholdPage({ params }: PageProps<"/households/[id]">) {
   const doctor = await requireDoctor();
   const { id } = await params;
 
-  const family = await loadFamily(doctor.id, id);
-  if (!family) notFound();
+  const household = await loadHousehold(doctor.id, id);
+  if (!household) notFound();
 
   const upcoming = await prisma.appointment.findMany({
-    where: { doctorId: doctor.id, patient: { familyId: family.id }, scheduledAt: { gte: new Date() } },
+    where: { doctorId: doctor.id, patient: { householdId: household.id }, scheduledAt: { gte: new Date() } },
     include: APPOINTMENT_LIST_INCLUDE,
     orderBy: { scheduledAt: "asc" },
     take: 10,
@@ -59,14 +59,14 @@ export default async function FamilyPage({ params }: PageProps<"/families/[id]">
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`${family.name} family`}
-        subtitle={`${family.patients.length} ${family.patients.length === 1 ? "member" : "members"}`}
+        title={`${household.name} household`}
+        subtitle={`${household.patients.length} ${household.patients.length === 1 ? "member" : "members"}`}
         actions={
           <>
-            <Link href={`/families/${family.id}/patients/new`} className={buttonClass("primary")}>
+            <Link href={`/households/${household.id}/patients/new`} className={buttonClass("primary")}>
               Add member
             </Link>
-            <Link href={`/families/${family.id}/edit`} className={buttonClass("secondary")}>
+            <Link href={`/households/${household.id}/edit`} className={buttonClass("secondary")}>
               Edit
             </Link>
           </>
@@ -75,12 +75,12 @@ export default async function FamilyPage({ params }: PageProps<"/families/[id]">
 
       <Card className="p-5">
         <dl className="grid gap-4 sm:grid-cols-2">
-          <Detail label="Address" value={family.address} />
-          <Detail label="Contact number" value={family.contactNumber} />
+          <Detail label="Address" value={household.address} />
+          <Detail label="Contact number" value={household.contactNumber} />
         </dl>
-        {family.notes ? (
+        {household.notes ? (
           <div className="mt-4 border-t border-border pt-4">
-            <Prose label="Household notes" text={family.notes} />
+            <Prose label="Household notes" text={household.notes} />
           </div>
         ) : null}
       </Card>
@@ -90,26 +90,26 @@ export default async function FamilyPage({ params }: PageProps<"/families/[id]">
           title="Members"
           action={
             <Link
-              href={`/families/${family.id}/patients/new`}
+              href={`/households/${household.id}/patients/new`}
               className="text-sm font-medium text-accent-ink hover:underline"
             >
               Add member
             </Link>
           }
         />
-        {family.patients.length === 0 ? (
+        {household.patients.length === 0 ? (
           <EmptyState
             title="No members yet"
             description="Add the people in this household so you can book them and keep their records."
             action={
-              <Link href={`/families/${family.id}/patients/new`} className={buttonClass("primary")}>
+              <Link href={`/households/${household.id}/patients/new`} className={buttonClass("primary")}>
                 Add member
               </Link>
             }
           />
         ) : (
           <ul className="divide-y divide-border">
-            {family.patients.map((patient) => (
+            {household.patients.map((patient) => (
               <li key={patient.id} className="transition-colors hover:bg-surface-muted">
                 <Link href={`/patients/${patient.id}`} className="flex items-baseline gap-4 px-5 py-4">
                   <span className="min-w-0 flex-1">
@@ -143,12 +143,12 @@ export default async function FamilyPage({ params }: PageProps<"/families/[id]">
       </Card>
 
       <DangerZone
-        action={deleteFamily}
-        fieldName="familyId"
-        fieldValue={family.id}
-        summary="Delete this family"
-        warning={`This permanently removes the ${family.name} family along with all ${family.patients.length} member records, their appointments and their medical records. It cannot be undone.`}
-        confirmLabel="Delete family and all records"
+        action={deleteHousehold}
+        fieldName="householdId"
+        fieldValue={household.id}
+        summary="Delete this household"
+        warning={`This permanently removes the ${household.name} household along with all ${household.patients.length} member records, their appointments and their medical records. It cannot be undone.`}
+        confirmLabel="Delete household and all records"
       />
     </div>
   );

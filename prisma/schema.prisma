@@ -10,7 +10,7 @@ datasource db {
   provider = "postgresql"
 }
 
-/// A doctor account. Every family, appointment and record is scoped to one.
+/// A doctor account. Every household, appointment and record is scoped to one.
 model Doctor {
   id            String  @id @default(cuid())
   email         String  @unique
@@ -23,14 +23,17 @@ model Doctor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  families       Family[]
+  households     Household[]
   appointments   Appointment[]
   medicalRecords MedicalRecord[]
 }
 
 /// A household. Patients are grouped under one so shared history — address,
 /// hereditary conditions, an outbreak running through the house — stays visible.
-model Family {
+/// Each member still keeps their own separate record, appointments and history;
+/// the grouping is for finding relatives, shared contact details, and hereditary
+/// risk, not for merging charts.
+model Household {
   id       String @id @default(cuid())
   doctorId String
   doctor   Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
@@ -77,9 +80,9 @@ enum BloodType {
 }
 
 model Patient {
-  id       String @id @default(cuid())
-  familyId String
-  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   firstName  String
   middleName String?
@@ -101,7 +104,7 @@ model Patient {
   appointments   Appointment[]
   medicalRecords MedicalRecord[]
 
-  @@index([familyId])
+  @@index([householdId])
   @@index([lastName, firstName])
 }
 

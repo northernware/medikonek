@@ -16,9 +16,9 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
 
   const patients = await prisma.patient.findMany({
     where: {
-      family: { doctorId: doctor.id },
+      household: { doctorId: doctor.id },
       ...(query
-        ? { OR: [{ firstName: like }, { lastName: like }, { family: { name: like } }] }
+        ? { OR: [{ firstName: like }, { lastName: like }, { household: { name: like } }] }
         : {}),
     },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
@@ -31,11 +31,11 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
       sex: true,
       relationship: true,
       allergies: true,
-      family: { select: { id: true, name: true } },
+      household: { select: { id: true, name: true } },
     },
   });
 
-  const familyCount = await prisma.family.count({ where: { doctorId: doctor.id } });
+  const householdCount = await prisma.household.count({ where: { doctorId: doctor.id } });
 
   return (
     <div className="space-y-6">
@@ -43,19 +43,19 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
         title="Patients"
         subtitle={`${patients.length} ${patients.length === 1 ? "person" : "people"}${query ? " matching" : " on your list"}`}
         actions={
-          familyCount > 0 ? (
-            <Link href="/families" className={buttonClass("secondary")}>
-              Add via family
+          householdCount > 0 ? (
+            <Link href="/households" className={buttonClass("secondary")}>
+              Add via household
             </Link>
           ) : (
-            <Link href="/families/new" className={buttonClass("primary")}>
-              New family
+            <Link href="/households/new" className={buttonClass("primary")}>
+              New household
             </Link>
           )
         }
       />
 
-      <SearchForm action="/patients" placeholder="Search by name or family" defaultValue={query} />
+      <SearchForm action="/patients" placeholder="Search by name or household" defaultValue={query} />
 
       <Card>
         {patients.length === 0 ? (
@@ -64,7 +64,7 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
             description={
               query
                 ? "Try a surname, or clear the search."
-                : "Patients are added inside a family, so their household history stays together."
+                : "Patients are added inside a household, so their household history stays together."
             }
             action={
               query ? (
@@ -72,8 +72,8 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
                   Clear search
                 </Link>
               ) : (
-                <Link href={familyCount > 0 ? "/families" : "/families/new"} className={buttonClass("primary")}>
-                  {familyCount > 0 ? "Choose a family" : "Create the first family"}
+                <Link href={householdCount > 0 ? "/households" : "/households/new"} className={buttonClass("primary")}>
+                  {householdCount > 0 ? "Choose a household" : "Create the first household"}
                 </Link>
               )
             }
@@ -89,7 +89,7 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
                       {patient.allergies ? <Badge tone="danger">Allergies</Badge> : null}
                     </span>
                     <span className="mt-0.5 block truncate text-sm text-ink-muted">
-                      {patient.family.name} family · {RELATIONSHIP_LABELS[patient.relationship]}
+                      {patient.household.name} household · {RELATIONSHIP_LABELS[patient.relationship]}
                     </span>
                   </span>
                   <span className="tabular shrink-0 text-sm text-ink-muted">

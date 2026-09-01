@@ -36,10 +36,10 @@ export default async function NewAppointmentPage({ searchParams }: PageProps<"/a
         <Card>
           <EmptyState
             title="No patients to book yet"
-            description="Create a family and add its members first — then you can schedule them."
+            description="Create a household and add its members first — then you can schedule them."
             action={
-              <Link href="/families/new" className={buttonClass("primary")}>
-                New family
+              <Link href="/households/new" className={buttonClass("primary")}>
+                New household
               </Link>
             }
           />
