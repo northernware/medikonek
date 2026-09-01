@@ -47,3 +47,6 @@ next-env.d.ts
 /.agents
 /.windsurf
 /skills-lock.json
+node_modules/
+dist/
+.env

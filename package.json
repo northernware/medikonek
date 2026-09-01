@@ -1,5 +1,6 @@
 {
   "name": "medikonek",
+  "type": "module",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -14,11 +15,13 @@
     "db:generate": "prisma generate",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "contract:emit": "prisma contract emit"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "@prisma/orm-postgres": "^8.0.0-rc.8",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.10",
     "next": "16.3.4",
@@ -28,6 +31,7 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@prisma/cli-engine": "^0.2.3",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
@@ -37,7 +41,7 @@
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
-    "prisma": "^7.10.0",
+    "prisma": "^8.0.0-rc.10",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5"

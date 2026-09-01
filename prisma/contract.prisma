@@ -1,0 +1,235 @@
+// use prisma-next
+// Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
+
+namespace public {
+  model Doctor {
+    @@map("Doctor")
+    id             String          @id(map: "Doctor_pkey")
+    email          String
+    passwordHash   String
+    fullName       String
+    specialty      String?
+    licenseNumber  String?
+    clinicName     String?
+    createdAt      Timestamp(3)    @default(now())
+    updatedAt      Timestamp(3)
+    appointments   Appointment[]
+    families       Family[]
+    medicalRecords MedicalRecord[]
+
+    @@index([email], map: "Doctor_email_key", unique: true)
+  }
+
+  model Family {
+    @@map("Family")
+    id            String       @id(map: "Family_pkey")
+    doctorId      String
+    name          String
+    address       String?
+    contactNumber String?
+    notes         String?
+    createdAt     Timestamp(3) @default(now())
+    updatedAt     Timestamp(3)
+    patients      Patient[]
+    doctor        Doctor       @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Family_doctorId_fkey")
+
+    @@index([doctorId], map: "Family_doctorId_idx")
+    @@index([doctorId, name], map: "Family_doctorId_name_key", unique: true)
+  }
+
+  model Patient {
+    @@map("Patient")
+    id                String                @id(map: "Patient_pkey")
+    familyId          String
+    firstName         String
+    middleName        String?
+    lastName          String
+    dateOfBirth       Date
+    sex               pg.enum(Sex)
+    relationship      pg.enum(Relationship) @default("OTHER")
+    bloodType         pg.enum(BloodType)    @default("UNKNOWN")
+    allergies         String?
+    chronicConditions String?
+    contactNumber     String?
+    email             String?
+    createdAt         Timestamp(3)          @default(now())
+    updatedAt         Timestamp(3)
+    appointments      Appointment[]
+    medicalRecords    MedicalRecord[]
+    family            Family                @relation(fields: [familyId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Patient_familyId_fkey")
+
+    @@index([familyId], map: "Patient_familyId_idx")
+    @@index([lastName, firstName], map: "Patient_lastName_firstName_idx")
+  }
+
+  model Appointment {
+    @@map("Appointment")
+    id                    String                      @id(map: "Appointment_pkey")
+    patientId             String
+    doctorId              String
+    scheduledAt           Timestamp(3)
+    durationMinutes       Int                         @default(30)
+    reason                String
+    status                pg.enum(AppointmentStatus)  @default("PENDING")
+    notes                 String?
+    createdAt             Timestamp(3)                @default(now())
+    updatedAt             Timestamp(3)
+    service               pg.enum(ServiceType)        @default("GENERAL_CONSULTATION")
+    internalNotes         String?
+    previousAppointmentId String?
+    priority              pg.enum(VisitPriority)      @default("ROUTINE")
+    reminderPreference    pg.enum(ReminderPreference) @default("NONE")
+    room                  String?
+    source                pg.enum(BookingSource)      @default("STAFF")
+    _type                 pg.enum(AppointmentType)    @default("IN_PERSON") @map("type")
+    medicalRecord         MedicalRecord?
+    doctor                Doctor                      @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Appointment_doctorId_fkey", index: false)
+    patient               Patient                     @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Appointment_patientId_fkey")
+    previousAppointment   Appointment?                @relation(name: "Appointment_previousAppointmentId_fkey", fields: [previousAppointmentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Appointment_previousAppointmentId_fkey")
+    appointments          Appointment[]               @relation(name: "Appointment_previousAppointmentId_fkey")
+
+    @@index([doctorId, scheduledAt], map: "Appointment_doctorId_scheduledAt_idx")
+    @@index([patientId], map: "Appointment_patientId_idx")
+    @@index([previousAppointmentId], map: "Appointment_previousAppointmentId_idx")
+  }
+
+  model MedicalRecord {
+    @@map("MedicalRecord")
+    id                      String         @id(map: "MedicalRecord_pkey")
+    patientId               String
+    doctorId                String
+    appointmentId           String?        @unique(map: "MedicalRecord_appointmentId_key")
+    visitDate               Timestamp(3)   @default(now())
+    chiefComplaint          String
+    historyOfPresentIllness String?
+    temperatureC            Float?
+    heartRate               Int?
+    respiratoryRate         Int?
+    systolic                Int?
+    diastolic               Int?
+    weightKg                Float?
+    heightCm                Float?
+    oxygenSaturation        Int?
+    assessment              String?
+    treatmentPlan           String?
+    followUpDate            Date?
+    notes                   String?
+    createdAt               Timestamp(3)   @default(now())
+    updatedAt               Timestamp(3)
+    prescriptions           Prescription[]
+    appointment             Appointment?   @relation(fields: [appointmentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "MedicalRecord_appointmentId_fkey")
+    doctor                  Doctor         @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "MedicalRecord_doctorId_fkey")
+    patient                 Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "MedicalRecord_patientId_fkey", index: false)
+
+    @@index([doctorId], map: "MedicalRecord_doctorId_idx")
+    @@index([patientId, visitDate], map: "MedicalRecord_patientId_visitDate_idx")
+  }
+
+  model Prescription {
+    @@map("Prescription")
+    id              String        @id(map: "Prescription_pkey")
+    medicalRecordId String
+    drugName        String
+    dosage          String
+    frequency       String
+    duration        String?
+    instructions    String?
+    createdAt       Timestamp(3)  @default(now())
+    medicalRecord   MedicalRecord @relation(fields: [medicalRecordId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Prescription_medicalRecordId_fkey")
+
+    @@index([medicalRecordId], map: "Prescription_medicalRecordId_idx")
+  }
+
+  model PrismaMigrations {
+    id                VarChar(36)  @id(map: "_prisma_migrations_pkey")
+    checksum          VarChar(64)
+    finishedAt        Timestamptz? @map("finished_at")
+    migrationName     VarChar(255) @map("migration_name")
+    logs              String?
+    rolledBackAt      Timestamptz? @map("rolled_back_at")
+    startedAt         Timestamptz  @default(now()) @map("started_at")
+    appliedStepsCount Int          @default(0) @map("applied_steps_count")
+
+    @@map("_prisma_migrations")
+  }
+
+  native_enum AppointmentStatus {
+    PENDING = "PENDING"
+    CONFIRMED = "CONFIRMED"
+    CHECKED_IN = "CHECKED_IN"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+    NO_SHOW = "NO_SHOW"
+  }
+
+  native_enum AppointmentType {
+    IN_PERSON = "IN_PERSON"
+    TELECONSULTATION = "TELECONSULTATION"
+    HOME_VISIT = "HOME_VISIT"
+  }
+
+  native_enum BloodType {
+    A_POS = "A_POS"
+    A_NEG = "A_NEG"
+    B_POS = "B_POS"
+    B_NEG = "B_NEG"
+    AB_POS = "AB_POS"
+    AB_NEG = "AB_NEG"
+    O_POS = "O_POS"
+    O_NEG = "O_NEG"
+    UNKNOWN = "UNKNOWN"
+  }
+
+  native_enum BookingSource {
+    STAFF = "STAFF"
+    WALK_IN = "WALK_IN"
+    PHONE = "PHONE"
+    PATIENT_PORTAL = "PATIENT_PORTAL"
+  }
+
+  native_enum Relationship {
+    HEAD = "HEAD"
+    SPOUSE = "SPOUSE"
+    CHILD = "CHILD"
+    PARENT = "PARENT"
+    SIBLING = "SIBLING"
+    GRANDPARENT = "GRANDPARENT"
+    OTHER = "OTHER"
+  }
+
+  native_enum ReminderPreference {
+    NONE = "NONE"
+    SMS = "SMS"
+    EMAIL = "EMAIL"
+    APP = "APP"
+  }
+
+  native_enum ServiceType {
+    GENERAL_CONSULTATION = "GENERAL_CONSULTATION"
+    FAMILY_CHECKUP = "FAMILY_CHECKUP"
+    FOLLOW_UP_CHECKUP = "FOLLOW_UP_CHECKUP"
+    ROUTINE_PHYSICAL_EXAM = "ROUTINE_PHYSICAL_EXAM"
+    PEDIATRIC_CONSULTATION = "PEDIATRIC_CONSULTATION"
+    SENIOR_CITIZEN_CONSULTATION = "SENIOR_CITIZEN_CONSULTATION"
+    PRENATAL_POSTNATAL_CONSULTATION = "PRENATAL_POSTNATAL_CONSULTATION"
+    CHRONIC_DISEASE_MANAGEMENT = "CHRONIC_DISEASE_MANAGEMENT"
+    PRESCRIPTION_RENEWAL = "PRESCRIPTION_RENEWAL"
+    LABORATORY_RESULT_REVIEW = "LABORATORY_RESULT_REVIEW"
+    MEDICAL_CERTIFICATE_REQUEST = "MEDICAL_CERTIFICATE_REQUEST"
+    VACCINATION_CONSULTATION = "VACCINATION_CONSULTATION"
+    MINOR_INJURY_WOUND_CARE = "MINOR_INJURY_WOUND_CARE"
+    TELECONSULTATION = "TELECONSULTATION"
+    REFERRAL_CONSULTATION = "REFERRAL_CONSULTATION"
+  }
+
+  native_enum Sex {
+    MALE = "MALE"
+    FEMALE = "FEMALE"
+  }
+
+  native_enum VisitPriority {
+    ROUTINE = "ROUTINE"
+    URGENT = "URGENT"
+    FOLLOW_UP = "FOLLOW_UP"
+  }
+}
