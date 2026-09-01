@@ -6,7 +6,14 @@ import { AppointmentStatus } from "@/app/generated/prisma/enums";
 import { requireDoctor } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/datetime";
-import { APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE, ageFrom, fullName } from "@/lib/domain";
+import {
+  APPOINTMENT_STATUS_LABELS,
+  APPOINTMENT_STATUS_TONE,
+  ageFrom,
+  fullName,
+  SERVICE_DESCRIPTIONS,
+  SERVICE_LABELS,
+} from "@/lib/domain";
 import { DangerZone } from "@/components/danger-zone";
 import { Badge, buttonClass, Card, Detail, PageHeader, Prose } from "@/components/ui";
 
@@ -88,7 +95,17 @@ export default async function AppointmentPage({ params }: PageProps<"/appointmen
         </div>
 
         <dl className="grid gap-4 sm:grid-cols-2">
-          <Detail label="Reason for visit" value={appointment.reason} />
+          <Detail
+            label="Service"
+            value={
+              <>
+                {SERVICE_LABELS[appointment.service]}
+                <span className="mt-0.5 block text-xs text-ink-faint">
+                  {SERVICE_DESCRIPTIONS[appointment.service]}
+                </span>
+              </>
+            }
+          />
           <Detail
             label="Patient"
             value={
@@ -97,6 +114,7 @@ export default async function AppointmentPage({ params }: PageProps<"/appointmen
               </Link>
             }
           />
+          <Detail label="Reason for visit" value={appointment.reason} />
         </dl>
 
         {appointment.notes ? (

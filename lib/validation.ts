@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { AppointmentStatus, BloodType, Relationship, Sex } from "@/app/generated/prisma/enums";
+import {
+  AppointmentStatus,
+  BloodType,
+  Relationship,
+  ServiceType,
+  Sex,
+} from "@/app/generated/prisma/enums";
 
 /** What every server action hands back to `useActionState`. */
 export type FormState = {
@@ -102,6 +108,7 @@ export const appointmentSchema = z.object({
     .int("Duration must be a whole number of minutes")
     .min(5, "Give the visit at least 5 minutes")
     .max(480, "That is longer than a clinic day"),
+  service: z.enum(ServiceType, { message: "Choose a service" }),
   reason: requiredText("Reason for visit", 300),
   status: z.enum(AppointmentStatus).default(AppointmentStatus.SCHEDULED),
   notes: optionalText(2000),

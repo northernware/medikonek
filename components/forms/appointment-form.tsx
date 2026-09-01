@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import type { ServiceType } from "@/app/generated/prisma/enums";
 import { Field, FieldGrid, FormError, Select, SubmitButton, TextArea, TextInput } from "@/components/form";
 import { buttonClass } from "@/components/ui";
-import { APPOINTMENT_STATUS_LABELS } from "@/lib/domain";
+import { APPOINTMENT_STATUS_LABELS, SERVICES, SERVICE_DESCRIPTIONS, SERVICE_MINUTES } from "@/lib/domain";
 import type { AppointmentDefaults, PatientOption } from "@/lib/form-defaults";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/validation";
 
@@ -25,6 +26,20 @@ export function AppointmentForm({
 }) {
   const [state, formAction] = useActionState(action, EMPTY_FORM_STATE);
   const err = state.fieldErrors;
+
+  // Picking a service sets a sensible slot length, but stops doing so the moment
+  // the doctor sets a duration themselves.
+  const [service, setService] = useState(defaults.service);
+  const [duration, setDuration] = useState(String(defaults.durationMinutes));
+  const [durationEdited, setDurationEdited] = useState(false);
+
+  function chooseService(value: string) {
+    setService(value);
+    if (!durationEdited) {
+      const minutes = SERVICE_MINUTES[value as ServiceType];
+      if (minutes) setDuration(String(minutes));
+    }
+  }
 
   // Group the picker by household so siblings sit together.
   const byFamily = patients.reduce<Record<string, PatientOption[]>>((acc, p) => {
@@ -53,6 +68,32 @@ export function AppointmentForm({
         </Select>
       </Field>
 
+      <Field
+        label="Service"
+        htmlFor="service"
+        error={err?.service}
+        hint={SERVICE_DESCRIPTIONS[service as ServiceType]}
+        required
+      >
+        <Select
+          id="service"
+          name="service"
+          value={service}
+          onChange={(e) => chooseService(e.target.value)}
+          required
+          invalid={Boolean(err?.service)}
+        >
+          <option value="" disabled>
+            Choose a service…
+          </option>
+          {SERVICES.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
       <FieldGrid>
         <Field label="Date and time" htmlFor="scheduledAt" error={err?.scheduledAt} required>
           <TextInput
@@ -64,8 +105,22 @@ export function AppointmentForm({
             invalid={Boolean(err?.scheduledAt)}
           />
         </Field>
-        <Field label="Duration" htmlFor="durationMinutes" error={err?.durationMinutes} required>
-          <Select id="durationMinutes" name="durationMinutes" defaultValue={String(defaults.durationMinutes)}>
+        <Field
+          label="Duration"
+          htmlFor="durationMinutes"
+          error={err?.durationMinutes}
+          hint={durationEdited ? undefined : "Set from the service — change it to override."}
+          required
+        >
+          <Select
+            id="durationMinutes"
+            name="durationMinutes"
+            value={duration}
+            onChange={(e) => {
+              setDuration(e.target.value);
+              setDurationEdited(true);
+            }}
+          >
             {[15, 20, 30, 45, 60, 90].map((m) => (
               <option key={m} value={m}>
                 {m} minutes
@@ -75,13 +130,19 @@ export function AppointmentForm({
         </Field>
       </FieldGrid>
 
-      <Field label="Reason for visit" htmlFor="reason" error={err?.reason} required>
+      <Field
+        label="Reason for visit"
+        htmlFor="reason"
+        error={err?.reason}
+        hint="The specifics — what the service field cannot say on its own."
+        required
+      >
         <TextInput
           id="reason"
           name="reason"
           defaultValue={defaults.reason}
           required
-          placeholder="Follow-up — hypertension"
+          placeholder="BP above target since last refill"
           invalid={Boolean(err?.reason)}
         />
       </Field>

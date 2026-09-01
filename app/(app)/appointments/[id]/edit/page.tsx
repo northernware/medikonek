@@ -32,6 +32,7 @@ export default async function EditAppointmentPage({ params }: PageProps<"/appoin
             patientId: appointment.patientId,
             scheduledAt: toDateTimeLocalValue(appointment.scheduledAt),
             durationMinutes: appointment.durationMinutes,
+            service: appointment.service,
             reason: appointment.reason,
             status: appointment.status,
             notes: appointment.notes ?? "",

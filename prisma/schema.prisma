@@ -112,6 +112,26 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+/// What the visit is for. A controlled list so the schedule can be read at a
+/// glance and reported on later; the free-text `reason` carries the specifics.
+enum ServiceType {
+  GENERAL_CONSULTATION
+  FAMILY_CHECKUP
+  FOLLOW_UP_CHECKUP
+  ROUTINE_PHYSICAL_EXAM
+  PEDIATRIC_CONSULTATION
+  SENIOR_CITIZEN_CONSULTATION
+  PRENATAL_POSTNATAL_CONSULTATION
+  CHRONIC_DISEASE_MANAGEMENT
+  PRESCRIPTION_RENEWAL
+  LABORATORY_RESULT_REVIEW
+  MEDICAL_CERTIFICATE_REQUEST
+  VACCINATION_CONSULTATION
+  MINOR_INJURY_WOUND_CARE
+  TELECONSULTATION
+  REFERRAL_CONSULTATION
+}
+
 model Appointment {
   id        String  @id @default(cuid())
   patientId String
@@ -121,6 +141,7 @@ model Appointment {
 
   scheduledAt     DateTime
   durationMinutes Int               @default(30)
+  service         ServiceType       @default(GENERAL_CONSULTATION)
   reason          String
   status          AppointmentStatus @default(SCHEDULED)
   notes           String?

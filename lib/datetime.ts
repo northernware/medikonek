@@ -85,12 +85,103 @@ export function formatDayHeading(at: Date) {
   }).format(at);
 }
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
 /** Midnight-to-midnight bounds of a clinic day containing `at`. */
 export function clinicDayRange(at: Date) {
-  const p = parts(at, CLINIC_TIME_ZONE);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const start = fromDateTimeLocalValue(`${p.year}-${pad(p.month)}-${pad(p.day)}T00:00`)!;
+  const start = startOfClinicDay(dayKey(at));
   return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1000) };
+}
+
+// --- Calendar ---------------------------------------------------------------
+// Days are addressed by a "YYYY-MM-DD" key in clinic time. Bucketing instants by
+// that key is what lets a month grid be built without a timezone library.
+
+/** The clinic calendar day an instant falls on. */
+export function dayKey(at: Date) {
+  const p = parts(at, CLINIC_TIME_ZONE);
+  return `${p.year}-${pad2(p.month)}-${pad2(p.day)}`;
+}
+
+export function startOfClinicDay(key: string) {
+  return fromDateTimeLocalValue(`${key}T00:00`)!;
+}
+
+/** "YYYY-MM" for the month an instant falls in. */
+export function monthKey(at: Date) {
+  return dayKey(at).slice(0, 7);
+}
+
+/** Parses "YYYY-MM", falling back to the current clinic month. */
+export function parseMonthKey(value: unknown, fallbackNow = new Date()) {
+  if (typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(value)) {
+    return { year: Number(value.slice(0, 4)), month: Number(value.slice(5, 7)) };
+  }
+  const now = monthKey(fallbackNow);
+  return { year: Number(now.slice(0, 4)), month: Number(now.slice(5, 7)) };
+}
+
+export function shiftMonth(year: number, month: number, by: number) {
+  const zeroBased = year * 12 + (month - 1) + by;
+  return `${Math.floor(zeroBased / 12)}-${pad2((zeroBased % 12) + 1)}`;
+}
+
+/** Instant bounds of a clinic month, for a single indexed range query. */
+export function clinicMonthRange(year: number, month: number) {
+  return {
+    start: startOfClinicDay(`${year}-${pad2(month)}-01`),
+    end: startOfClinicDay(`${shiftMonth(year, month, 1)}-01`),
+  };
+}
+
+export type CalendarCell = { key: string; day: number; inMonth: boolean };
+
+/**
+ * Whole weeks (Sunday-first) covering the month, stopping before the first week
+ * that lies entirely outside it — a 28-day February beginning on a Sunday needs
+ * four rows, not six. Built from UTC arithmetic on calendar dates, which carries
+ * no timezone risk. The first week always contains day 1, so this never trims
+ * everything.
+ */
+export function monthGrid(year: number, month: number): CalendarCell[][] {
+  const first = new Date(Date.UTC(year, month - 1, 1));
+  const start = Date.UTC(year, month - 1, 1 - first.getUTCDay());
+
+  const weeks: CalendarCell[][] = [];
+  for (let w = 0; w < 6; w++) {
+    const week: CalendarCell[] = [];
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(start + (w * 7 + d) * 86_400_000);
+      week.push({
+        key: `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`,
+        day: date.getUTCDate(),
+        inMonth: date.getUTCMonth() === month - 1 && date.getUTCFullYear() === year,
+      });
+    }
+    if (week.every((c) => !c.inMonth)) break;
+    weeks.push(week);
+  }
+  return weeks;
+}
+
+export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export function formatMonthHeading(year: number, month: number) {
+  return new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", month: "long", year: "numeric" }).format(
+    new Date(Date.UTC(year, month - 1, 1)),
+  );
+}
+
+/** "Wednesday, 2 September" from a day key — no instant conversion needed. */
+export function formatDayKeyHeading(key: string) {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Intl.DateTimeFormat(LOCALE, {
+    timeZone: "UTC",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
 // --- Calendar dates (date of birth, follow-up) ------------------------------

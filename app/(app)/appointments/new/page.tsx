@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createAppointment } from "@/app/actions/appointments";
-import { AppointmentStatus } from "@/app/generated/prisma/enums";
+import { AppointmentStatus, ServiceType } from "@/app/generated/prisma/enums";
 import { requireDoctor } from "@/lib/auth";
 import { patientOptions } from "@/lib/queries";
 import { toDateTimeLocalValue } from "@/lib/datetime";
+import { SERVICE_MINUTES } from "@/lib/domain";
 import { AppointmentForm } from "@/components/forms/appointment-form";
 import { buttonClass, Card, EmptyState, PageHeader } from "@/components/ui";
 
@@ -52,7 +53,8 @@ export default async function NewAppointmentPage({ searchParams }: PageProps<"/a
           defaults={{
             patientId: preselected ? (patientId as string) : "",
             scheduledAt: defaultSlot(),
-            durationMinutes: 30,
+            durationMinutes: SERVICE_MINUTES.GENERAL_CONSULTATION,
+            service: ServiceType.GENERAL_CONSULTATION,
             reason: "",
             status: AppointmentStatus.SCHEDULED,
             notes: "",

@@ -1,13 +1,19 @@
 import Link from "next/link";
-import type { AppointmentStatus } from "@/app/generated/prisma/enums";
+import type { AppointmentStatus, ServiceType } from "@/app/generated/prisma/enums";
 import { formatDayHeading, formatTime } from "@/lib/datetime";
-import { APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_TONE, fullName } from "@/lib/domain";
+import {
+  APPOINTMENT_STATUS_LABELS,
+  APPOINTMENT_STATUS_TONE,
+  fullName,
+  SERVICE_LABELS,
+} from "@/lib/domain";
 import { Badge, EmptyState } from "@/components/ui";
 
 export type AppointmentListItem = {
   id: string;
   scheduledAt: Date;
   durationMinutes: number;
+  service: ServiceType;
   reason: string;
   status: AppointmentStatus;
   patient: {
@@ -78,7 +84,12 @@ function AppointmentRow({ appointment }: { appointment: AppointmentListItem }) {
           {formatTime(appointment.scheduledAt)}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium">{fullName(patient)}</span>
+          <span className="block truncate text-sm font-medium">
+            {fullName(patient)}
+            <span className="ml-2 text-xs font-normal text-ink-faint">
+              {SERVICE_LABELS[appointment.service]}
+            </span>
+          </span>
           <span className="block truncate text-sm text-ink-muted">
             {patient.family.name} · {appointment.reason}
           </span>
@@ -94,7 +105,7 @@ function AppointmentRow({ appointment }: { appointment: AppointmentListItem }) {
   );
 }
 
-/** The `include` every query feeding this list needs. */
+/** The `include` every query feeding this list needs. Scalars come along by default. */
 export const APPOINTMENT_LIST_INCLUDE = {
   patient: {
     select: {

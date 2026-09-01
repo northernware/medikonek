@@ -3,9 +3,10 @@
 Appointments and medical records for family practice, organised by household.
 
 A doctor signs in, creates a **family**, adds its members as **patients**, books
-**appointments**, and documents each visit as a **medical record** with vitals,
-assessment, plan and prescriptions. Everything a doctor creates is visible only
-to that doctor.
+**appointments** against one of fifteen services, and documents each visit as a
+**medical record** with vitals, assessment, plan and prescriptions. A month
+**calendar** shows which days are booked and at what times. Everything a doctor
+creates is visible only to that doctor.
 
 ## Stack
 
@@ -34,7 +35,8 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 ```
 
 The seed creates a demo doctor — **doctor@medikonek.test** / **medikonek-demo** —
-with two households, seven patients, today's clinic and a few past encounters.
+with two households, seven patients, seventeen appointments spread across the
+month and a few past encounters.
 Delete it before going anywhere near real data.
 
 ### Database
@@ -54,7 +56,7 @@ Supabase, RDS or your own server and the migrations apply unchanged.
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm run db:start` / `db:stop` | Local Postgres instance |
-| `npm run db:migrate` | Create and apply a migration |
+| `npm run db:migrate` | Create and apply a migration (needs `SHADOW_DATABASE_URL`) |
 | `npm run db:seed` | Load the demo practice |
 | `npm run db:studio` | Prisma Studio |
 
@@ -65,6 +67,7 @@ app/
   (auth)/            login and register — redirects to / when already signed in
   (app)/             everything behind the session gate
     page.tsx         today's clinic, counts, recently documented
+    calendar/        month grid of booked days and times, plus a day panel
     families/        list, create, edit, household detail, add a member
     patients/        list, chart, edit
     appointments/    list (upcoming/past/all), booking, detail, reschedule
@@ -86,6 +89,25 @@ components/          UI kit, shared lists, and the four forms
 patient and `Prescription` off a record. A record optionally links to the
 appointment it documents; making that link marks the appointment completed.
 
+### Services
+
+Every appointment carries a `ServiceType` from a fixed list of fifteen — general
+consultation, family checkup, follow-up, routine physical, pediatric, senior
+citizen, prenatal/postnatal, chronic disease management, prescription renewal,
+laboratory result review, medical certificate, vaccination, minor injury and
+wound care, teleconsultation, and referral. The catalogue lives in one place,
+`SERVICES` in `lib/domain.ts`, which also carries each service's description and
+its default slot length; picking a service in the booking form sets the duration
+until the doctor overrides it. Free-text `reason` still carries the specifics.
+
+### Calendar
+
+`/calendar?month=YYYY-MM` renders whole Sunday-first weeks for the month, with
+each day cell showing its booked times (density dots on phones, where there is no
+room for text) and a colour per status. Selecting a day opens the full schedule
+for it below the grid. Days are bucketed by a clinic-timezone `YYYY-MM-DD` key,
+so the month query stays a single indexed range scan.
+
 ### Security notes
 
 - Server Actions are reachable by direct POST, so **every** action calls
@@ -106,7 +128,11 @@ defaults to `Asia/Manila`; set `NEXT_PUBLIC_CLINIC_TIMEZONE` to change it.
 
 ## Not yet built
 
-Nurse/staff roles and shared access, file attachments (labs, imaging),
-printable prescriptions and medical certificates, appointment reminders, an
-audit trail of who changed what, and per-record soft deletes. The current
-delete actions are permanent.
+A patient-facing portal — right now the doctor books on the patient's behalf and
+picks the service; patients choosing their own slot needs patient accounts and a
+public booking flow. Multiple doctors per clinic (resident vs. general) with
+per-doctor schedules. Booking several family members into one Family Checkup as a
+single visit. Week and day calendar views. Slot conflict detection — two bookings
+can currently overlap. Nurse/staff roles, file attachments (labs, imaging),
+printable prescriptions and medical certificates, appointment reminders, and an
+audit trail of who changed what. Deletes are permanent, with no soft-delete.

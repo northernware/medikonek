@@ -5,6 +5,7 @@ import {
   AppointmentStatus,
   BloodType,
   Relationship,
+  ServiceType,
   Sex,
 } from "../app/generated/prisma/enums";
 
@@ -139,6 +140,7 @@ async function main() {
     family.patients.find((p) => p.firstName === first)!.id;
 
   const ramon = byName(delaCruz, "Ramon");
+  const marilou = byName(delaCruz, "Marilou");
   const joaquin = byName(delaCruz, "Joaquin");
   const corazon = byName(delaCruz, "Corazon");
   const sofia = byName(delaCruz, "Sofia");
@@ -153,6 +155,7 @@ async function main() {
         doctorId: doctor.id,
         scheduledAt: at(0, 9, 0),
         durationMinutes: 20,
+        service: ServiceType.CHRONIC_DISEASE_MANAGEMENT,
         reason: "BP check and refill",
         status: AppointmentStatus.SCHEDULED,
       },
@@ -161,6 +164,7 @@ async function main() {
         doctorId: doctor.id,
         scheduledAt: at(0, 9, 30),
         durationMinutes: 30,
+        service: ServiceType.PEDIATRIC_CONSULTATION,
         reason: "Well-child visit, 4 years",
         status: AppointmentStatus.SCHEDULED,
       },
@@ -169,6 +173,7 @@ async function main() {
         doctorId: doctor.id,
         scheduledAt: at(0, 10, 30),
         durationMinutes: 30,
+        service: ServiceType.GENERAL_CONSULTATION,
         reason: "Rash on both forearms",
         status: AppointmentStatus.SCHEDULED,
       },
@@ -177,6 +182,7 @@ async function main() {
         doctorId: doctor.id,
         scheduledAt: at(2, 8, 30),
         durationMinutes: 30,
+        service: ServiceType.SENIOR_CITIZEN_CONSULTATION,
         reason: "Diabetes follow-up, HbA1c review",
         status: AppointmentStatus.SCHEDULED,
       },
@@ -185,6 +191,7 @@ async function main() {
         doctorId: doctor.id,
         scheduledAt: at(5, 14, 0),
         durationMinutes: 45,
+        service: ServiceType.ROUTINE_PHYSICAL_EXAM,
         reason: "New patient consultation",
         status: AppointmentStatus.SCHEDULED,
       },
@@ -193,8 +200,106 @@ async function main() {
         doctorId: doctor.id,
         scheduledAt: at(-3, 11, 0),
         durationMinutes: 30,
+        service: ServiceType.PEDIATRIC_CONSULTATION,
         reason: "Cough and wheezing",
         status: AppointmentStatus.COMPLETED,
+      },
+    ],
+  });
+
+  // Spread across the surrounding weeks so the month calendar has real shape.
+  await prisma.appointment.createMany({
+    data: [
+      {
+        patientId: marilou,
+        doctorId: doctor.id,
+        scheduledAt: at(1, 10, 0),
+        durationMinutes: 20,
+        service: ServiceType.LABORATORY_RESULT_REVIEW,
+        reason: "Thyroid panel results",
+      },
+      {
+        patientId: ramon,
+        doctorId: doctor.id,
+        scheduledAt: at(1, 15, 0),
+        durationMinutes: 20,
+        service: ServiceType.TELECONSULTATION,
+        reason: "Home BP log review",
+      },
+      {
+        patientId: joaquin,
+        doctorId: doctor.id,
+        scheduledAt: at(4, 9, 0),
+        durationMinutes: 20,
+        service: ServiceType.FOLLOW_UP_CHECKUP,
+        reason: "Post-exacerbation review",
+      },
+      {
+        patientId: elena,
+        doctorId: doctor.id,
+        scheduledAt: at(4, 9, 30),
+        durationMinutes: 20,
+        service: ServiceType.MEDICAL_CERTIFICATE_REQUEST,
+        reason: "Fitness to work clearance",
+      },
+      {
+        patientId: miguel,
+        doctorId: doctor.id,
+        scheduledAt: at(4, 10, 30),
+        durationMinutes: 20,
+        service: ServiceType.VACCINATION_CONSULTATION,
+        reason: "Catch-up immunisation schedule",
+      },
+      {
+        patientId: corazon,
+        doctorId: doctor.id,
+        scheduledAt: at(9, 8, 30),
+        durationMinutes: 15,
+        service: ServiceType.PRESCRIPTION_RENEWAL,
+        reason: "Metformin refill",
+      },
+      {
+        patientId: sofia,
+        doctorId: doctor.id,
+        scheduledAt: at(12, 11, 0),
+        durationMinutes: 30,
+        service: ServiceType.MINOR_INJURY_WOUND_CARE,
+        reason: "Dressing change, grazed knee",
+      },
+      {
+        patientId: marilou,
+        doctorId: doctor.id,
+        scheduledAt: at(16, 14, 0),
+        durationMinutes: 60,
+        service: ServiceType.FAMILY_CHECKUP,
+        reason: "Whole household annual review",
+      },
+      {
+        patientId: elena,
+        doctorId: doctor.id,
+        scheduledAt: at(-8, 13, 0),
+        durationMinutes: 20,
+        service: ServiceType.REFERRAL_CONSULTATION,
+        reason: "Dermatology referral",
+        status: AppointmentStatus.COMPLETED,
+      },
+      {
+        patientId: ramon,
+        doctorId: doctor.id,
+        scheduledAt: at(-12, 9, 0),
+        durationMinutes: 20,
+        service: ServiceType.GENERAL_CONSULTATION,
+        reason: "Sore throat",
+        status: AppointmentStatus.NO_SHOW,
+      },
+      {
+        patientId: marilou,
+        doctorId: doctor.id,
+        scheduledAt: at(-15, 10, 0),
+        durationMinutes: 45,
+        service: ServiceType.PRENATAL_POSTNATAL_CONSULTATION,
+        reason: "Postnatal review",
+        status: AppointmentStatus.CANCELLED,
       },
     ],
   });

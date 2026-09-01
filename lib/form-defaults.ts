@@ -54,6 +54,7 @@ export type AppointmentDefaults = {
   patientId: string;
   scheduledAt: string;
   durationMinutes: number;
+  service: string;
   reason: string;
   status: string;
   notes: string;
