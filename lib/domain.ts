@@ -1,9 +1,13 @@
 import type {
   AppointmentStatus,
+  AppointmentType,
   BloodType,
+  BookingSource,
   Relationship,
+  ReminderPreference,
   ServiceType,
   Sex,
+  VisitPriority,
 } from "@/app/generated/prisma/enums";
 
 export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
@@ -34,23 +38,66 @@ export const BLOOD_TYPE_LABELS: Record<BloodType, string> = {
 };
 
 export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
-  SCHEDULED: "Scheduled",
+  PENDING: "Pending",
+  CONFIRMED: "Confirmed",
+  CHECKED_IN: "Checked in",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
   NO_SHOW: "No-show",
 };
 
 /** Badge palette keyed by appointment status. */
-export const APPOINTMENT_STATUS_TONE: Record<AppointmentStatus, "accent" | "ok" | "neutral" | "warn"> = {
-  SCHEDULED: "accent",
+export const APPOINTMENT_STATUS_TONE: Record<
+  AppointmentStatus,
+  "accent" | "ok" | "neutral" | "warn"
+> = {
+  PENDING: "warn",
+  CONFIRMED: "accent",
+  CHECKED_IN: "accent",
   COMPLETED: "ok",
   CANCELLED: "neutral",
   NO_SHOW: "warn",
 };
 
+/** Statuses that still expect the patient to turn up. */
+export const ACTIVE_STATUSES: AppointmentStatus[] = ["PENDING", "CONFIRMED", "CHECKED_IN"];
+
+export const APPOINTMENT_TYPE_LABELS: Record<AppointmentType, string> = {
+  IN_PERSON: "In person",
+  TELECONSULTATION: "Teleconsultation",
+  HOME_VISIT: "Home visit",
+};
+
+export const VISIT_PRIORITY_LABELS: Record<VisitPriority, string> = {
+  ROUTINE: "Routine",
+  URGENT: "Urgent",
+  FOLLOW_UP: "Follow-up",
+};
+
+export const VISIT_PRIORITY_TONE: Record<VisitPriority, "neutral" | "danger" | "accent"> = {
+  ROUTINE: "neutral",
+  URGENT: "danger",
+  FOLLOW_UP: "accent",
+};
+
+export const BOOKING_SOURCE_LABELS: Record<BookingSource, string> = {
+  STAFF: "Staff-created",
+  WALK_IN: "Walk-in",
+  PHONE: "Phone",
+  PATIENT_PORTAL: "Patient portal",
+};
+
+export const REMINDER_LABELS: Record<ReminderPreference, string> = {
+  NONE: "No reminder",
+  SMS: "SMS",
+  EMAIL: "Email",
+  APP: "App notification",
+};
+
 /**
  * The bookable services, in the order they are offered. `minutes` is the slot
- * length the booking form starts from — the doctor can still override it.
+ * length: booking derives duration from the service rather than asking, so the
+ * slot picker knows how much of the day a visit consumes.
  */
 export const SERVICES: {
   value: ServiceType;

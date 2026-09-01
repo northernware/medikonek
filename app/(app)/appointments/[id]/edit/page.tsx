@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { updateAppointment } from "@/app/actions/appointments";
 import { requireDoctor } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { patientOptions } from "@/lib/queries";
-import { toDateTimeLocalValue } from "@/lib/datetime";
+import { bookingFormData } from "@/lib/queries";
+import { dayKey, toDateTimeLocalValue } from "@/lib/datetime";
 import { AppointmentForm } from "@/components/forms/appointment-form";
 import { Card, PageHeader } from "@/components/ui";
 
@@ -17,25 +17,35 @@ export default async function EditAppointmentPage({ params }: PageProps<"/appoin
   const appointment = await prisma.appointment.findFirst({ where: { id, doctorId: doctor.id } });
   if (!appointment) notFound();
 
-  const patients = await patientOptions(doctor.id);
-  const action = updateAppointment.bind(null, appointment.id);
+  // Excluding this booking is what lets its own slot read as free.
+  const { patients, busyByDay, followUps, window } = await bookingFormData(doctor.id, appointment.id);
 
   return (
     <div className="space-y-6">
       <PageHeader title="Edit appointment" />
       <Card className="p-5 sm:p-6">
         <AppointmentForm
-          action={action}
+          action={updateAppointment.bind(null, appointment.id)}
           patients={patients}
-          showStatus
+          busyByDay={busyByDay}
+          followUps={followUps}
+          window={window}
+          staffFields
           defaults={{
             patientId: appointment.patientId,
-            scheduledAt: toDateTimeLocalValue(appointment.scheduledAt),
-            durationMinutes: appointment.durationMinutes,
+            date: dayKey(appointment.scheduledAt),
+            time: toDateTimeLocalValue(appointment.scheduledAt).slice(11, 16),
             service: appointment.service,
             reason: appointment.reason,
+            type: appointment.type,
+            priority: appointment.priority,
             status: appointment.status,
+            source: appointment.source,
+            reminderPreference: appointment.reminderPreference,
+            previousAppointmentId: appointment.previousAppointmentId ?? "",
+            room: appointment.room ?? "",
             notes: appointment.notes ?? "",
+            internalNotes: appointment.internalNotes ?? "",
           }}
           submitLabel="Save changes"
           cancelHref={`/appointments/${appointment.id}`}

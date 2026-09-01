@@ -1,176 +1,428 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import type { ServiceType } from "@/app/generated/prisma/enums";
 import { Field, FieldGrid, FormError, Select, SubmitButton, TextArea, TextInput } from "@/components/form";
 import { buttonClass } from "@/components/ui";
-import { APPOINTMENT_STATUS_LABELS, SERVICES, SERVICE_DESCRIPTIONS, SERVICE_MINUTES } from "@/lib/domain";
-import type { AppointmentDefaults, PatientOption } from "@/lib/form-defaults";
+import { formatDayKeyFull } from "@/lib/datetime";
+import {
+  APPOINTMENT_STATUS_LABELS,
+  APPOINTMENT_TYPE_LABELS,
+  BOOKING_SOURCE_LABELS,
+  REMINDER_LABELS,
+  SERVICES,
+  SERVICE_DESCRIPTIONS,
+  SERVICE_MINUTES,
+  VISIT_PRIORITY_LABELS,
+} from "@/lib/domain";
+import type {
+  AppointmentDefaults,
+  BusyByDay,
+  FollowUpOptions,
+  PatientOption,
+} from "@/lib/form-defaults";
+import { isClosedDay, OFFICE_HOURS_TEXT, slotsForDay } from "@/lib/scheduling";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/validation";
 
 export function AppointmentForm({
   action,
   defaults,
   patients,
+  busyByDay,
+  followUps,
+  window: bookingWindow,
   submitLabel,
   cancelHref,
-  showStatus = false,
+  staffFields = false,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   defaults: AppointmentDefaults;
   patients: PatientOption[];
+  busyByDay: BusyByDay;
+  followUps: FollowUpOptions;
+  /** Bookable date range, decided by the server so both clocks agree. */
+  window: { earliest: string; latest: string };
   submitLabel: string;
   cancelHref: string;
-  showStatus?: boolean;
+  /** Reveals status, source, room and internal notes. */
+  staffFields?: boolean;
 }) {
   const [state, formAction] = useActionState(action, EMPTY_FORM_STATE);
   const err = state.fieldErrors;
 
-  // Picking a service sets a sensible slot length, but stops doing so the moment
-  // the doctor sets a duration themselves.
+  const [patientId, setPatientId] = useState(defaults.patientId);
   const [service, setService] = useState(defaults.service);
-  const [duration, setDuration] = useState(String(defaults.durationMinutes));
-  const [durationEdited, setDurationEdited] = useState(false);
+  const [date, setDate] = useState(defaults.date);
+  const [time, setTime] = useState(defaults.time);
 
-  function chooseService(value: string) {
-    setService(value);
-    if (!durationEdited) {
-      const minutes = SERVICE_MINUTES[value as ServiceType];
-      if (minutes) setDuration(String(minutes));
-    }
+  // Duration is the service's, not a question — the slot picker needs to know
+  // how much of the day each visit consumes.
+  const duration = SERVICE_MINUTES[service as ServiceType] ?? 30;
+
+  const slots = useMemo(
+    () => slotsForDay(date, duration, busyByDay[date] ?? [], bookingWindow),
+    [date, duration, busyByDay, bookingWindow],
+  );
+
+  // When editing a visit that already sits outside the bookable window, its own
+  // time still has to be selectable or the form could not be saved at all.
+  const keepsOriginalSlot =
+    date === defaults.date && defaults.time !== "" && !slots.some((s) => s.value === defaults.time);
+
+  const closed = date !== "" && isClosedDay(date);
+  const selectedPatient = patients.find((p) => p.id === patientId);
+  const patientFollowUps = followUps[patientId] ?? [];
+
+  function chooseDate(next: string) {
+    setDate(next);
+    // A time from another day means nothing — make them pick again.
+    setTime(next === defaults.date ? defaults.time : "");
   }
 
-  // Group the picker by household so siblings sit together.
+  function chooseService(next: string) {
+    setService(next);
+    // A longer service may no longer fit where the old one did.
+    setTime("");
+  }
+
   const byFamily = patients.reduce<Record<string, PatientOption[]>>((acc, p) => {
     (acc[p.familyName] ??= []).push(p);
     return acc;
   }, {});
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form action={formAction} className="space-y-7">
       <FormError message={state.message} />
 
-      <Field label="Patient" htmlFor="patientId" error={err?.patientId} required>
-        <Select id="patientId" name="patientId" defaultValue={defaults.patientId} required>
-          <option value="" disabled>
-            Select a patient…
-          </option>
-          {Object.entries(byFamily).map(([family, members]) => (
-            <optgroup key={family} label={family}>
-              {members.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </Select>
-      </Field>
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold">Visit</h2>
 
-      <Field
-        label="Service"
-        htmlFor="service"
-        error={err?.service}
-        hint={SERVICE_DESCRIPTIONS[service as ServiceType]}
-        required
-      >
-        <Select
-          id="service"
-          name="service"
-          value={service}
-          onChange={(e) => chooseService(e.target.value)}
-          required
-          invalid={Boolean(err?.service)}
-        >
-          <option value="" disabled>
-            Choose a service…
-          </option>
-          {SERVICES.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </Select>
-      </Field>
-
-      <FieldGrid>
-        <Field label="Date and time" htmlFor="scheduledAt" error={err?.scheduledAt} required>
-          <TextInput
-            id="scheduledAt"
-            name="scheduledAt"
-            type="datetime-local"
-            defaultValue={defaults.scheduledAt}
-            required
-            invalid={Boolean(err?.scheduledAt)}
-          />
-        </Field>
         <Field
-          label="Duration"
-          htmlFor="durationMinutes"
-          error={err?.durationMinutes}
-          hint={durationEdited ? undefined : "Set from the service — change it to override."}
+          label="Patient"
+          htmlFor="patientId"
+          error={err?.patientId}
+          hint={selectedPatient ? `${selectedPatient.familyName} family` : undefined}
           required
         >
           <Select
-            id="durationMinutes"
-            name="durationMinutes"
-            value={duration}
-            onChange={(e) => {
-              setDuration(e.target.value);
-              setDurationEdited(true);
-            }}
+            id="patientId"
+            name="patientId"
+            value={patientId}
+            onChange={(e) => setPatientId(e.target.value)}
+            required
           >
-            {[15, 20, 30, 45, 60, 90].map((m) => (
-              <option key={m} value={m}>
-                {m} minutes
-              </option>
+            <option value="" disabled>
+              Select a patient…
+            </option>
+            {Object.entries(byFamily).map(([family, members]) => (
+              <optgroup key={family} label={family}>
+                {members.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </Select>
         </Field>
-      </FieldGrid>
 
-      <Field
-        label="Reason for visit"
-        htmlFor="reason"
-        error={err?.reason}
-        hint="The specifics — what the service field cannot say on its own."
-        required
-      >
-        <TextInput
-          id="reason"
-          name="reason"
-          defaultValue={defaults.reason}
+        <Field
+          label="Service"
+          htmlFor="service"
+          error={err?.service}
+          hint={SERVICE_DESCRIPTIONS[service as ServiceType]}
           required
-          placeholder="BP above target since last refill"
-          invalid={Boolean(err?.reason)}
-        />
-      </Field>
-
-      {showStatus ? (
-        <Field label="Status" htmlFor="status" error={err?.status}>
-          <Select id="status" name="status" defaultValue={defaults.status}>
-            {Object.entries(APPOINTMENT_STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
+        >
+          <Select
+            id="service"
+            name="service"
+            value={service}
+            onChange={(e) => chooseService(e.target.value)}
+            required
+            invalid={Boolean(err?.service)}
+          >
+            <option value="" disabled>
+              Choose a service…
+            </option>
+            {SERVICES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label} · {s.minutes} min
               </option>
             ))}
           </Select>
         </Field>
+
+        <Field
+          label="Reason for visit"
+          htmlFor="reason"
+          error={err?.reason}
+          hint="The specifics — what the service field cannot say on its own."
+          required
+        >
+          <TextInput
+            id="reason"
+            name="reason"
+            defaultValue={defaults.reason}
+            required
+            placeholder="BP above target since last refill"
+            invalid={Boolean(err?.reason)}
+          />
+        </Field>
+      </section>
+
+      <section className="space-y-4 border-t border-border pt-6">
+        <div>
+          <h2 className="text-sm font-semibold">Schedule</h2>
+          <p className="text-sm text-ink-muted">
+            {OFFICE_HOURS_TEXT}. Bookings open from {formatDayKeyFull(bookingWindow.earliest)}.
+          </p>
+        </div>
+
+        <FieldGrid>
+          <Field
+            label="Appointment date"
+            htmlFor="date"
+            error={err?.date}
+            hint={date ? formatDayKeyFull(date) : undefined}
+            required
+          >
+            <TextInput
+              id="date"
+              name="date"
+              type="date"
+              value={date}
+              min={bookingWindow.earliest}
+              max={bookingWindow.latest}
+              onChange={(e) => chooseDate(e.target.value)}
+              required
+              invalid={Boolean(err?.date)}
+            />
+          </Field>
+
+          <Field label="Duration" htmlFor="durationDisplay" hint="Set by the service.">
+            <TextInput id="durationDisplay" value={`${duration} minutes`} disabled readOnly />
+          </Field>
+        </FieldGrid>
+
+        <fieldset>
+          <legend className="mb-1.5 block text-sm font-medium">
+            Available time slot<span className="ml-0.5 text-danger">*</span>
+          </legend>
+          {/* The chosen slot travels as a plain field so the server sees the
+              same name whether or not a radio was clicked. */}
+          <input type="hidden" name="time" value={time} />
+
+          {closed ? (
+            <p className="rounded-lg border border-border bg-surface-muted px-3 py-3 text-sm text-ink-muted">
+              The clinic is closed on Sundays. Choose another date.
+            </p>
+          ) : !date ? (
+            <p className="rounded-lg border border-border bg-surface-muted px-3 py-3 text-sm text-ink-muted">
+              Pick a date to see open slots.
+            </p>
+          ) : slots.length === 0 && !keepsOriginalSlot ? (
+            <p className="rounded-lg border border-border bg-surface-muted px-3 py-3 text-sm text-ink-muted">
+              That date is outside the booking window.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 lg:grid-cols-6">
+                {keepsOriginalSlot ? (
+                  <SlotChip
+                    value={defaults.time}
+                    label={`${defaults.time} (current)`}
+                    free
+                    selected={time === defaults.time}
+                    onSelect={setTime}
+                  />
+                ) : null}
+                {slots.map((slot) => (
+                  <SlotChip
+                    key={slot.value}
+                    value={slot.value}
+                    label={slot.label}
+                    free={slot.free}
+                    selected={time === slot.value}
+                    onSelect={setTime}
+                  />
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-ink-faint">
+                Greyed-out times are already booked or would overlap a {duration}-minute visit.
+              </p>
+            </>
+          )}
+          {err?.time ? <p className="mt-1 text-xs text-danger-ink">{err.time[0]}</p> : null}
+        </fieldset>
+      </section>
+
+      <section className="space-y-4 border-t border-border pt-6">
+        <h2 className="text-sm font-semibold">Details</h2>
+
+        <FieldGrid>
+          <Field label="Appointment type" htmlFor="type" error={err?.type}>
+            <Select id="type" name="type" defaultValue={defaults.type}>
+              {Object.entries(APPOINTMENT_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Visit priority" htmlFor="priority" error={err?.priority}>
+            <Select id="priority" name="priority" defaultValue={defaults.priority}>
+              {Object.entries(VISIT_PRIORITY_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </FieldGrid>
+
+        <FieldGrid>
+          <Field
+            label="Reminder preference"
+            htmlFor="reminderPreference"
+            error={err?.reminderPreference}
+            hint="Recorded only — nothing sends reminders yet."
+          >
+            <Select
+              id="reminderPreference"
+              name="reminderPreference"
+              defaultValue={defaults.reminderPreference}
+            >
+              {Object.entries(REMINDER_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field
+            label="Follows on from"
+            htmlFor="previousAppointmentId"
+            error={err?.previousAppointmentId}
+            hint={
+              patientId && patientFollowUps.length === 0
+                ? "This patient has no earlier visits to link."
+                : undefined
+            }
+          >
+            <Select
+              id="previousAppointmentId"
+              name="previousAppointmentId"
+              defaultValue={defaults.previousAppointmentId}
+              disabled={patientFollowUps.length === 0}
+            >
+              <option value="">Not a follow-up</option>
+              {patientFollowUps.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </FieldGrid>
+
+        <Field
+          label="Scheduling notes"
+          htmlFor="notes"
+          error={err?.notes}
+          hint="Accessibility needs, preferred arrangements, anything the patient asked for."
+        >
+          <TextArea id="notes" name="notes" rows={3} defaultValue={defaults.notes} />
+        </Field>
+      </section>
+
+      {staffFields ? (
+        <section className="space-y-4 border-t border-border pt-6">
+          <div>
+            <h2 className="text-sm font-semibold">Clinic use</h2>
+            <p className="text-sm text-ink-muted">Never shown to the patient.</p>
+          </div>
+
+          <FieldGrid className="sm:grid-cols-3">
+            <Field label="Status" htmlFor="status" error={err?.status}>
+              <Select id="status" name="status" defaultValue={defaults.status}>
+                {Object.entries(APPOINTMENT_STATUS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Booking source" htmlFor="source" error={err?.source}>
+              <Select id="source" name="source" defaultValue={defaults.source}>
+                {Object.entries(BOOKING_SOURCE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Room" htmlFor="room" error={err?.room}>
+              <TextInput id="room" name="room" defaultValue={defaults.room} placeholder="Room 2" />
+            </Field>
+          </FieldGrid>
+
+          <Field label="Internal notes" htmlFor="internalNotes" error={err?.internalNotes}>
+            <TextArea
+              id="internalNotes"
+              name="internalNotes"
+              rows={3}
+              defaultValue={defaults.internalNotes}
+            />
+          </Field>
+        </section>
       ) : (
-        <input type="hidden" name="status" value={defaults.status} />
+        <>
+          <input type="hidden" name="status" value={defaults.status} />
+          <input type="hidden" name="source" value={defaults.source} />
+        </>
       )}
 
-      <Field label="Scheduling notes" htmlFor="notes" error={err?.notes}>
-        <TextArea id="notes" name="notes" rows={3} defaultValue={defaults.notes} />
-      </Field>
-
-      <div className="flex gap-2 pt-1">
+      <div className="flex gap-2 border-t border-border pt-6">
         <SubmitButton>{submitLabel}</SubmitButton>
         <Link href={cancelHref} className={buttonClass("secondary")}>
           Cancel
         </Link>
       </div>
     </form>
+  );
+}
+
+function SlotChip({
+  value,
+  label,
+  free,
+  selected,
+  onSelect,
+}: {
+  value: string;
+  label: string;
+  free: boolean;
+  selected: boolean;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={!free}
+      aria-pressed={selected}
+      onClick={() => onSelect(value)}
+      className={[
+        "tabular rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+        selected
+          ? "border-accent bg-accent text-on-accent"
+          : free
+            ? "border-border bg-surface text-ink hover:border-accent hover:bg-accent-soft"
+            : "cursor-not-allowed border-border bg-surface-muted text-ink-faint line-through",
+      ].join(" ")}
+    >
+      {label}
+    </button>
   );
 }

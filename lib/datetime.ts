@@ -52,11 +52,16 @@ export function fromDateTimeLocalValue(value: string): Date | null {
   return new Date(naive - zoneOffsetMs(new Date(naive), CLINIC_TIME_ZONE));
 }
 
+// Dates always spell the month out. "03/09/2026" reads as 3 September to half
+// the world and March 9 to the other half; "March 9, 2026" reads one way only.
+const LONG_DATE = { year: "numeric", month: "long", day: "numeric" } as const;
+
 export function formatDateTime(at: Date) {
   return new Intl.DateTimeFormat(LOCALE, {
     timeZone: CLINIC_TIME_ZONE,
-    dateStyle: "medium",
-    timeStyle: "short",
+    ...LONG_DATE,
+    hour: "numeric",
+    minute: "2-digit",
   }).format(at);
 }
 
@@ -81,10 +86,7 @@ export function formatTimeCompact(at: Date) {
 }
 
 export function formatDate(at: Date) {
-  return new Intl.DateTimeFormat(LOCALE, {
-    timeZone: CLINIC_TIME_ZONE,
-    dateStyle: "medium",
-  }).format(at);
+  return new Intl.DateTimeFormat(LOCALE, { timeZone: CLINIC_TIME_ZONE, ...LONG_DATE }).format(at);
 }
 
 /** "Wednesday, 2 September 2026" — for day headings. */
@@ -217,5 +219,23 @@ export function fromDateInputValue(value: string): Date | null {
 }
 
 export function formatCalendarDate(d: Date) {
-  return new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", dateStyle: "medium" }).format(d);
+  return new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", ...LONG_DATE }).format(d);
+}
+
+/** "March 9, 2026" from a "YYYY-MM-DD" key — for echoing a date input back. */
+export function formatDayKeyLong(key: string) {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", ...LONG_DATE }).format(
+    new Date(Date.UTC(y, m - 1, d)),
+  );
+}
+
+/** "Monday, March 9, 2026" — the same, with the weekday, for booking forms. */
+export function formatDayKeyFull(key: string) {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Intl.DateTimeFormat(LOCALE, {
+    timeZone: "UTC",
+    weekday: "long",
+    ...LONG_DATE,
+  }).format(new Date(Date.UTC(y, m - 1, d)));
 }

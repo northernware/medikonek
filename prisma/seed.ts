@@ -3,19 +3,27 @@ import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
 import {
   AppointmentStatus,
+  AppointmentType,
+  BookingSource,
   BloodType,
   Relationship,
   ServiceType,
   Sex,
+  VisitPriority,
 } from "../app/generated/prisma/enums";
 
 const DEMO_EMAIL = "doctor@medikonek.test";
 const DEMO_PASSWORD = "medikonek-demo";
 
-/** Days from today at a given clinic-ish hour, so the seed always looks current. */
+/**
+ * Days from today at a given clinic hour, so the seed always looks current.
+ * Sundays are nudged to the Monday after — the clinic is closed, and demo data
+ * that breaks the app's own booking rules is just confusing.
+ */
 function at(dayOffset: number, hour: number, minute = 0) {
   const d = new Date();
   d.setDate(d.getDate() + dayOffset);
+  if (d.getDay() === 0) d.setDate(d.getDate() + 1);
   d.setHours(hour, minute, 0, 0);
   return d;
 }
@@ -157,7 +165,7 @@ async function main() {
         durationMinutes: 20,
         service: ServiceType.CHRONIC_DISEASE_MANAGEMENT,
         reason: "BP check and refill",
-        status: AppointmentStatus.SCHEDULED,
+        status: AppointmentStatus.CONFIRMED,
       },
       {
         patientId: sofia,
@@ -166,7 +174,7 @@ async function main() {
         durationMinutes: 30,
         service: ServiceType.PEDIATRIC_CONSULTATION,
         reason: "Well-child visit, 4 years",
-        status: AppointmentStatus.SCHEDULED,
+        status: AppointmentStatus.CONFIRMED,
       },
       {
         patientId: miguel,
@@ -175,7 +183,7 @@ async function main() {
         durationMinutes: 30,
         service: ServiceType.GENERAL_CONSULTATION,
         reason: "Rash on both forearms",
-        status: AppointmentStatus.SCHEDULED,
+        status: AppointmentStatus.CONFIRMED,
       },
       {
         patientId: corazon,
@@ -184,7 +192,7 @@ async function main() {
         durationMinutes: 30,
         service: ServiceType.SENIOR_CITIZEN_CONSULTATION,
         reason: "Diabetes follow-up, HbA1c review",
-        status: AppointmentStatus.SCHEDULED,
+        status: AppointmentStatus.CONFIRMED,
       },
       {
         patientId: elena,
@@ -193,7 +201,8 @@ async function main() {
         durationMinutes: 45,
         service: ServiceType.ROUTINE_PHYSICAL_EXAM,
         reason: "New patient consultation",
-        status: AppointmentStatus.SCHEDULED,
+        status: AppointmentStatus.PENDING,
+        source: BookingSource.PHONE,
       },
       {
         patientId: joaquin,
@@ -224,6 +233,7 @@ async function main() {
         scheduledAt: at(1, 15, 0),
         durationMinutes: 20,
         service: ServiceType.TELECONSULTATION,
+        type: AppointmentType.TELECONSULTATION,
         reason: "Home BP log review",
       },
       {
@@ -232,6 +242,7 @@ async function main() {
         scheduledAt: at(4, 9, 0),
         durationMinutes: 20,
         service: ServiceType.FOLLOW_UP_CHECKUP,
+        priority: VisitPriority.FOLLOW_UP,
         reason: "Post-exacerbation review",
       },
       {
@@ -264,6 +275,7 @@ async function main() {
         scheduledAt: at(12, 11, 0),
         durationMinutes: 30,
         service: ServiceType.MINOR_INJURY_WOUND_CARE,
+        priority: VisitPriority.URGENT,
         reason: "Dressing change, grazed knee",
       },
       {

@@ -1,29 +1,33 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createAppointment } from "@/app/actions/appointments";
-import { AppointmentStatus, ServiceType } from "@/app/generated/prisma/enums";
+import {
+  AppointmentStatus,
+  AppointmentType,
+  BookingSource,
+  ReminderPreference,
+  ServiceType,
+  VisitPriority,
+} from "@/app/generated/prisma/enums";
 import { requireDoctor } from "@/lib/auth";
-import { patientOptions } from "@/lib/queries";
-import { toDateTimeLocalValue } from "@/lib/datetime";
-import { SERVICE_MINUTES } from "@/lib/domain";
+import { bookingFormData } from "@/lib/queries";
+import { isClosedDay } from "@/lib/scheduling";
 import { AppointmentForm } from "@/components/forms/appointment-form";
 import { buttonClass, Card, EmptyState, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Book appointment" };
 
-/**
- * 09:00 on the requested day, or tomorrow when the calendar did not send one.
- */
-function defaultSlot(date: unknown) {
-  if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) return `${date}T09:00`;
-  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  return `${toDateTimeLocalValue(tomorrow).slice(0, 10)}T09:00`;
+/** The requested day, if it is one the clinic could actually take. */
+function usableDate(requested: unknown, window: { earliest: string; latest: string }) {
+  if (typeof requested !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(requested)) return "";
+  if (requested < window.earliest || requested > window.latest) return "";
+  return isClosedDay(requested) ? "" : requested;
 }
 
 export default async function NewAppointmentPage({ searchParams }: PageProps<"/appointments/new">) {
   const doctor = await requireDoctor();
   const { patientId, date } = await searchParams;
-  const patients = await patientOptions(doctor.id);
+  const { patients, busyByDay, followUps, window } = await bookingFormData(doctor.id);
 
   if (patients.length === 0) {
     return (
@@ -53,14 +57,26 @@ export default async function NewAppointmentPage({ searchParams }: PageProps<"/a
         <AppointmentForm
           action={createAppointment}
           patients={patients}
+          busyByDay={busyByDay}
+          followUps={followUps}
+          window={window}
+          staffFields
           defaults={{
             patientId: preselected ? (patientId as string) : "",
-            scheduledAt: defaultSlot(date),
-            durationMinutes: SERVICE_MINUTES.GENERAL_CONSULTATION,
+            date: usableDate(date, window),
+            time: "",
             service: ServiceType.GENERAL_CONSULTATION,
             reason: "",
-            status: AppointmentStatus.SCHEDULED,
+            type: AppointmentType.IN_PERSON,
+            priority: VisitPriority.ROUTINE,
+            // Staff booking on the patient's behalf, so it is already agreed.
+            status: AppointmentStatus.CONFIRMED,
+            source: BookingSource.STAFF,
+            reminderPreference: ReminderPreference.NONE,
+            previousAppointmentId: "",
+            room: "",
             notes: "",
+            internalNotes: "",
           }}
           submitLabel="Book appointment"
           cancelHref="/appointments"

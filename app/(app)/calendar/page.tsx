@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AppointmentStatus } from "@/app/generated/prisma/enums";
+import type { AppointmentStatus } from "@/app/generated/prisma/enums";
 import { requireDoctor } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -21,20 +21,15 @@ import {
   fullName,
   SERVICE_LABELS,
 } from "@/lib/domain";
+import { occupiesSlot } from "@/lib/scheduling";
 import { Badge, buttonClass, Card, CardHeader, EmptyState, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Calendar" };
 
-/** Cancelled bookings still belong in history but should not read as booked time. */
-const OCCUPIES_SLOT: Record<AppointmentStatus, boolean> = {
-  SCHEDULED: true,
-  COMPLETED: true,
-  NO_SHOW: true,
-  CANCELLED: false,
-};
-
 const DOT_TONE: Record<AppointmentStatus, string> = {
-  SCHEDULED: "bg-accent",
+  PENDING: "bg-warn",
+  CONFIRMED: "bg-accent",
+  CHECKED_IN: "bg-accent",
   COMPLETED: "bg-ok",
   NO_SHOW: "bg-warn",
   CANCELLED: "bg-border-strong",
@@ -93,7 +88,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
   const selected = selectedDay ? (byDay.get(selectedDay) ?? []) : [];
   const bookedDays = [...byDay.values()].filter((list) =>
-    list.some((a) => OCCUPIES_SLOT[a.status]),
+    list.some((a) => occupiesSlot(a.status)),
   ).length;
 
   return (

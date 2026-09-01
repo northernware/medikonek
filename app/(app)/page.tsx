@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { AppointmentStatus } from "@/app/generated/prisma/enums";
 import { requireDoctor } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { clinicDayRange, formatDayHeading, formatDate } from "@/lib/datetime";
-import { fullName } from "@/lib/domain";
+import { ACTIVE_STATUSES, fullName } from "@/lib/domain";
 import { AppointmentList, APPOINTMENT_LIST_INCLUDE } from "@/components/appointment-list";
 import { buttonClass, Card, CardHeader, EmptyState, PageHeader, Stat } from "@/components/ui";
 
@@ -23,7 +22,7 @@ export default async function DashboardPage() {
         where: {
           doctorId: doctor.id,
           scheduledAt: { gte: today.end },
-          status: AppointmentStatus.SCHEDULED,
+          status: { in: ACTIVE_STATUSES },
         },
       }),
       prisma.family.count({ where: { doctorId: doctor.id } }),
@@ -42,7 +41,7 @@ export default async function DashboardPage() {
     ]);
 
   const remaining = todaysAppointments.filter(
-    (a) => a.status === AppointmentStatus.SCHEDULED && a.scheduledAt >= now,
+    (a) => ACTIVE_STATUSES.includes(a.status) && a.scheduledAt >= now,
   ).length;
 
   const firstName = doctor.fullName.replace(/^Dr\.?\s+/i, "").split(/\s+/)[0];

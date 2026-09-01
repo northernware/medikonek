@@ -106,10 +106,41 @@ model Patient {
 }
 
 enum AppointmentStatus {
-  SCHEDULED
+  PENDING
+  CONFIRMED
+  CHECKED_IN
   COMPLETED
   CANCELLED
   NO_SHOW
+}
+
+enum AppointmentType {
+  IN_PERSON
+  TELECONSULTATION
+  HOME_VISIT
+}
+
+enum VisitPriority {
+  ROUTINE
+  URGENT
+  FOLLOW_UP
+}
+
+/// Where the booking came from. Only STAFF and WALK_IN are reachable today;
+/// PATIENT_PORTAL is here for when patients can book themselves.
+enum BookingSource {
+  STAFF
+  WALK_IN
+  PHONE
+  PATIENT_PORTAL
+}
+
+/// Recorded preference only — nothing sends reminders yet.
+enum ReminderPreference {
+  NONE
+  SMS
+  EMAIL
+  APP
 }
 
 /// What the visit is for. A controlled list so the schedule can be read at a
@@ -143,8 +174,23 @@ model Appointment {
   durationMinutes Int               @default(30)
   service         ServiceType       @default(GENERAL_CONSULTATION)
   reason          String
-  status          AppointmentStatus @default(SCHEDULED)
-  notes           String?
+  status          AppointmentStatus @default(PENDING)
+  type            AppointmentType   @default(IN_PERSON)
+  priority        VisitPriority     @default(ROUTINE)
+
+  /// Visible to the patient if they are ever shown their booking.
+  notes String?
+
+  // --- Staff-only ---
+  source             BookingSource      @default(STAFF)
+  reminderPreference ReminderPreference @default(NONE)
+  room               String?
+  internalNotes      String?
+
+  /// The visit this one follows on from, so a follow-up chain is navigable.
+  previousAppointmentId String?
+  previousAppointment   Appointment?  @relation("FollowUpChain", fields: [previousAppointmentId], references: [id], onDelete: SetNull)
+  followUps             Appointment[] @relation("FollowUpChain")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -154,6 +200,7 @@ model Appointment {
 
   @@index([doctorId, scheduledAt])
   @@index([patientId])
+  @@index([previousAppointmentId])
 }
 
 /// One encounter: what was complained of, what was measured, what was decided.

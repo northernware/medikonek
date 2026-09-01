@@ -52,15 +52,30 @@ export function blankPatient(familyId: string): PatientDefaults {
 
 export type AppointmentDefaults = {
   patientId: string;
-  scheduledAt: string;
-  durationMinutes: number;
+  /** "YYYY-MM-DD" — the picker offers slots for whichever day this names. */
+  date: string;
+  /** "HH:mm" in clinic time, or "" when nothing is chosen yet. */
+  time: string;
   service: string;
   reason: string;
+  type: string;
+  priority: string;
   status: string;
+  source: string;
+  reminderPreference: string;
+  previousAppointmentId: string;
+  room: string;
   notes: string;
+  internalNotes: string;
 };
 
 export type PatientOption = { id: string; label: string; familyName: string };
+
+/** Past visits a booking can be marked as following on from, keyed by patient. */
+export type FollowUpOptions = Record<string, { id: string; label: string }[]>;
+
+/** Minutes-from-midnight intervals already taken, keyed by "YYYY-MM-DD". */
+export type BusyByDay = Record<string, { start: number; end: number }[]>;
 
 export type PrescriptionRow = {
   drugName: string;

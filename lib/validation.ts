@@ -1,10 +1,14 @@
 import { z } from "zod";
 import {
   AppointmentStatus,
+  AppointmentType,
   BloodType,
+  BookingSource,
   Relationship,
+  ReminderPreference,
   ServiceType,
   Sex,
+  VisitPriority,
 } from "@/app/generated/prisma/enums";
 
 /** What every server action hands back to `useActionState`. */
@@ -100,18 +104,27 @@ export const patientSchema = z.object({
 
 // --- Appointments -----------------------------------------------------------
 
+// Date and time are separate fields: the form offers only the slots the clinic
+// actually has open, so a free-text datetime would defeat the point.
 export const appointmentSchema = z.object({
   patientId: requiredText("Patient", 40),
-  scheduledAt: dateTimeLocal("Appointment time"),
-  durationMinutes: z.coerce
-    .number<number>()
-    .int("Duration must be a whole number of minutes")
-    .min(5, "Give the visit at least 5 minutes")
-    .max(480, "That is longer than a clinic day"),
+  date: dateOnly("Appointment date"),
+  time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Choose an available time slot"),
   service: z.enum(ServiceType, { message: "Choose a service" }),
   reason: requiredText("Reason for visit", 300),
-  status: z.enum(AppointmentStatus).default(AppointmentStatus.SCHEDULED),
+
+  type: z.enum(AppointmentType).default(AppointmentType.IN_PERSON),
+  priority: z.enum(VisitPriority).default(VisitPriority.ROUTINE),
+  status: z.enum(AppointmentStatus).default(AppointmentStatus.PENDING),
+  source: z.enum(BookingSource).default(BookingSource.STAFF),
+  reminderPreference: z.enum(ReminderPreference).default(ReminderPreference.NONE),
+
+  previousAppointmentId: optionalText(40),
+  room: optionalText(60),
   notes: optionalText(2000),
+  internalNotes: optionalText(2000),
 });
 
 // --- Medical records --------------------------------------------------------

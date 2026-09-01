@@ -89,6 +89,20 @@ components/          UI kit, shared lists, and the four forms
 patient and `Prescription` off a record. A record optionally links to the
 appointment it documents; making that link marks the appointment completed.
 
+### Booking rules
+
+One module, `lib/scheduling.ts`, holds the clinic's rules: open 8:00 AM to
+5:00 PM, closed Sundays, and a booking must be at least one day ahead (and at
+most 180). The booking form mirrors them — the date input is bounded, Sundays
+explain themselves, and the slot grid only offers times a visit of that length
+actually fits into — but `checkBookingRules` on the server is what decides. A
+stale slot list and a direct POST both land there.
+
+Overlap is checked the same way: the form greys out any start time that would
+collide with an existing booking, and the action re-checks against the whole
+clinic day before writing, so two people racing for the last slot cannot both
+get it.
+
 ### Services
 
 Every appointment carries a `ServiceType` from a fixed list of fifteen — general
@@ -97,8 +111,9 @@ citizen, prenatal/postnatal, chronic disease management, prescription renewal,
 laboratory result review, medical certificate, vaccination, minor injury and
 wound care, teleconsultation, and referral. The catalogue lives in one place,
 `SERVICES` in `lib/domain.ts`, which also carries each service's description and
-its default slot length; picking a service in the booking form sets the duration
-until the doctor overrides it. Free-text `reason` still carries the specifics.
+its default slot length. Duration is derived from the service rather than asked
+for — the slot picker needs to know how much of the day a visit consumes.
+Free-text `reason` still carries the specifics.
 
 ### Calendar
 
@@ -132,11 +147,26 @@ defaults to `Asia/Manila`; set `NEXT_PUBLIC_CLINIC_TIMEZONE` to change it.
 
 ## Not yet built
 
-A patient-facing portal — right now the doctor books on the patient's behalf and
-picks the service; patients choosing their own slot needs patient accounts and a
-public booking flow. Multiple doctors per clinic (resident vs. general) with
-per-doctor schedules. Booking several family members into one Family Checkup as a
-single visit. Week and day calendar views. Slot conflict detection — two bookings
-can currently overlap. Nurse/staff roles, file attachments (labs, imaging),
-printable prescriptions and medical certificates, appointment reminders, and an
-audit trail of who changed what. Deletes are permanent, with no soft-delete.
+**A patient-facing portal.** The doctor books on the patient's behalf today.
+Patients choosing their own slot needs patient accounts, a public booking flow,
+and a review step for `PENDING` requests. `BookingSource.PATIENT_PORTAL` exists
+so those bookings will be distinguishable when it lands.
+
+**Multiple doctors per clinic.** One account is one doctor, and every query
+scopes to the signed-in doctor's own records. A "which doctor" field on booking
+needs a clinic that owns doctors, per-doctor availability, and a rethink of that
+scoping — it is not a dropdown.
+
+**Attending family members.** `FAMILY_CHECKUP` labels the visit but still books
+one patient. Several members in one appointment needs a join table and a
+decision about whose record the encounter belongs to.
+
+**Attachments** (labs, referral letters, images) need file storage, which the
+app has none of yet.
+
+**Reminders** are recorded as a preference only; nothing sends anything.
+
+Also outstanding: repeat/recurring appointments, week and day calendar views,
+per-doctor working hours and holidays beyond the fixed Sunday closure,
+printable prescriptions and medical certificates, an audit trail of who changed
+what, and soft deletes — deletion is permanent.
