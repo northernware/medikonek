@@ -8,7 +8,7 @@ import {
   ReminderPreference,
   ServiceType,
   VisitPriority,
-} from "@/app/generated/prisma/enums";
+} from "@/lib/enums";
 import { requireDoctor } from "@/lib/auth";
 import { bookingFormData } from "@/lib/queries";
 import { isClosedDay } from "@/lib/scheduling";

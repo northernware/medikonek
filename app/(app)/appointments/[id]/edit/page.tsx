@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { updateAppointment } from "@/app/actions/appointments";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
+import { instantFromDb } from "@/lib/datetime";
 import { bookingFormData } from "@/lib/queries";
 import { dayKey, toDateTimeLocalValue } from "@/lib/datetime";
 import { AppointmentForm } from "@/components/forms/appointment-form";
@@ -14,8 +15,13 @@ export default async function EditAppointmentPage({ params }: PageProps<"/appoin
   const doctor = await requireDoctor();
   const { id } = await params;
 
-  const appointment = await prisma.appointment.findFirst({ where: { id, doctorId: doctor.id } });
+  const appointment = await orm.Appointment
+    .where((a) => a.id.eq(id))
+    .where((a) => a.doctorId.eq(doctor.id))
+    .first();
   if (!appointment) notFound();
+
+  const scheduledAt = instantFromDb(appointment.scheduledAt);
 
   // Excluding this booking is what lets its own slot read as free.
   const { patients, busyByDay, followUps, window } = await bookingFormData(doctor.id, appointment.id);
@@ -33,11 +39,11 @@ export default async function EditAppointmentPage({ params }: PageProps<"/appoin
           staffFields
           defaults={{
             patientId: appointment.patientId,
-            date: dayKey(appointment.scheduledAt),
-            time: toDateTimeLocalValue(appointment.scheduledAt).slice(11, 16),
+            date: dayKey(scheduledAt),
+            time: toDateTimeLocalValue(scheduledAt).slice(11, 16),
             service: appointment.service,
             reason: appointment.reason,
-            type: appointment.type,
+            type: appointment.visitType,
             priority: appointment.priority,
             status: appointment.status,
             source: appointment.source,

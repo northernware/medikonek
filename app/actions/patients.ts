@@ -2,18 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { AllergySeverity, Prisma } from "@/app/generated/prisma/client";
+import type { AllergySeverity } from "@/lib/enums";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db, orm } from "@/src/prisma/db";
+import { calendarDateToDb, instantToDb } from "@/lib/datetime";
+import { newId } from "@/lib/ids";
 import { fromDateInputValue } from "@/lib/datetime";
 import { clinicalItemSchema, patientSchema, toFieldErrors, type FormState } from "@/lib/validation";
 
 /** Confirms the household belongs to the signed-in doctor before anything is written. */
 async function assertOwnsHousehold(doctorId: string, householdId: string) {
-  const household = await prisma.household.findFirst({
-    where: { id: householdId, doctorId },
-    select: { id: true },
-  });
+  const household = await orm.Household
+    .select("id")
+    .where((h) => h.id.eq(householdId))
+    .where((h) => h.doctorId.eq(doctorId))
+    .first();
   return household !== null;
 }
 
@@ -78,12 +81,56 @@ function reconcileStatus(declared: string, count: number) {
   return declared === "NONE_KNOWN" ? ("NONE_KNOWN" as const) : ("UNKNOWN" as const);
 }
 
+/**
+ * Writes both clinical lists for a patient. Prisma 8 has no nested create, so the
+ * rows go in one at a time; callers run this inside the same transaction as the
+ * patient write so a list is never half-applied.
+ */
+async function writeClinicalLists(
+  t: typeof orm,
+  patientId: string,
+  allergies: ClinicalRow[],
+  conditions: ClinicalRow[],
+) {
+  const now = instantToDb(new Date());
+  for (const a of allergies) {
+    await t.PatientAllergy.create({ ...a, id: newId(), patientId, createdAt: now });
+  }
+  for (const c of conditions) {
+    await t.PatientCondition.create({
+      id: newId(),
+      patientId,
+      label: c.label,
+      notes: c.notes,
+      createdAt: now,
+    });
+  }
+}
+
+/**
+ * The columns the form owns: the ORM's create input minus the keys the action
+ * supplies itself, and minus the relation slots — the same object is spread into
+ * both a create and an update, and update takes columns only.
+ */
+type PatientScalars = Omit<
+  Parameters<typeof orm.Patient.create>[0],
+  | "id"
+  | "householdId"
+  | "createdAt"
+  | "updatedAt"
+  | "household"
+  | "appointments"
+  | "medicalRecords"
+  | "allergies"
+  | "conditions"
+>;
+
 type ParsedPatient =
   | { ok: false; error: FormState }
   | {
       ok: true;
       householdId: string;
-      scalars: Omit<Prisma.PatientUncheckedCreateInput, "id" | "householdId">;
+      scalars: PatientScalars;
       allergies: ClinicalRow[];
       conditions: ClinicalRow[];
     };
@@ -112,7 +159,7 @@ function parsePatientForm(formData: FormData): ParsedPatient {
     householdId,
     scalars: {
       ...rest,
-      dateOfBirth: dob,
+      dateOfBirth: calendarDateToDb(dob),
       allergyStatus: reconcileStatus(allergyStatus, allergies.rows.length),
       conditionStatus: reconcileStatus(conditionStatus, conditions.rows.length),
     },
@@ -130,14 +177,19 @@ export async function createPatient(_prev: FormState, formData: FormData): Promi
     return { message: "That household is not on your list." };
   }
 
-  const patient = await prisma.patient.create({
-    data: {
+  // The patient and its clinical lists are written together: a half-created
+  // patient with no allergies would read as "none known" rather than "not asked".
+  const patient = await db.transaction(async (tx) => {
+    const now = instantToDb(new Date());
+    const created = await tx.orm.public.Patient.select("id").create({
       ...parsed.scalars,
+      id: newId(),
       householdId: parsed.householdId,
-      allergies: { create: parsed.allergies },
-      conditions: { create: parsed.conditions.map(({ label, notes }) => ({ label, notes })) },
-    },
-    select: { id: true },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await writeClinicalLists(tx.orm.public, created.id, parsed.allergies, parsed.conditions);
+    return created;
   });
 
   revalidatePath(`/households/${parsed.householdId}`);
@@ -158,31 +210,25 @@ export async function updatePatient(
     return { message: "That household is not on your list." };
   }
 
-  const owned = await prisma.patient.findFirst({
-    where: { id: patientId, household: { doctorId: doctor.id } },
-    select: { id: true },
-  });
+  const owned = await orm.Patient
+    .select("id")
+    .where((p) => p.id.eq(patientId))
+    .where((p) => p.household.some((h) => h.doctorId.eq(doctor.id)))
+    .first();
   if (!owned) return { message: "That patient no longer exists." };
 
   // The lists are edited as a whole, so they are replaced wholesale — the same
   // way prescriptions are handled on a record.
-  await prisma.$transaction(async (tx) => {
-    await tx.patient.update({
-      where: { id: patientId },
-      data: { ...parsed.scalars, householdId: parsed.householdId },
+  await db.transaction(async (tx) => {
+    const t = tx.orm.public;
+    await t.Patient.where((p) => p.id.eq(patientId)).update({
+      ...parsed.scalars,
+      householdId: parsed.householdId,
+      updatedAt: instantToDb(new Date()),
     });
-    await tx.patientAllergy.deleteMany({ where: { patientId } });
-    await tx.patientCondition.deleteMany({ where: { patientId } });
-    if (parsed.allergies.length > 0) {
-      await tx.patientAllergy.createMany({
-        data: parsed.allergies.map((a) => ({ ...a, patientId })),
-      });
-    }
-    if (parsed.conditions.length > 0) {
-      await tx.patientCondition.createMany({
-        data: parsed.conditions.map((c) => ({ label: c.label, notes: c.notes, patientId })),
-      });
-    }
+    await t.PatientAllergy.where((a) => a.patientId.eq(patientId)).delete();
+    await t.PatientCondition.where((c) => c.patientId.eq(patientId)).delete();
+    await writeClinicalLists(t, patientId, parsed.allergies, parsed.conditions);
   });
 
   revalidatePath("/patients");
@@ -196,13 +242,14 @@ export async function deletePatient(formData: FormData) {
   const patientId = String(formData.get("patientId") ?? "");
   if (!patientId) return;
 
-  const patient = await prisma.patient.findFirst({
-    where: { id: patientId, household: { doctorId: doctor.id } },
-    select: { householdId: true },
-  });
+  const patient = await orm.Patient
+    .select("householdId")
+    .where((p) => p.id.eq(patientId))
+    .where((p) => p.household.some((h) => h.doctorId.eq(doctor.id)))
+    .first();
   if (!patient) return;
 
-  await prisma.patient.delete({ where: { id: patientId } });
+  await orm.Patient.where((p) => p.id.eq(patientId)).delete();
 
   revalidatePath("/patients");
   revalidatePath(`/households/${patient.householdId}`);

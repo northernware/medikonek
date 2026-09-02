@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
+import { instantToDb } from "@/lib/datetime";
+import { newId } from "@/lib/ids";
 import { householdSchema, toFieldErrors, type FormState } from "@/lib/validation";
 
 export async function createHousehold(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -11,10 +13,11 @@ export async function createHousehold(_prev: FormState, formData: FormData): Pro
   const parsed = householdSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return toFieldErrors(parsed.error);
 
-  const existing = await prisma.household.findUnique({
-    where: { doctorId_name: { doctorId: doctor.id, name: parsed.data.name } },
-    select: { id: true },
-  });
+  const existing = await orm.Household
+    .select("id")
+    .where((h) => h.doctorId.eq(doctor.id))
+    .where((h) => h.name.eq(parsed.data.name))
+    .first();
   if (existing) {
     return {
       message: "You already have a household with that name.",
@@ -22,9 +25,13 @@ export async function createHousehold(_prev: FormState, formData: FormData): Pro
     };
   }
 
-  const household = await prisma.household.create({
-    data: { ...parsed.data, doctorId: doctor.id },
-    select: { id: true },
+  const now = instantToDb(new Date());
+  const household = await orm.Household.select("id").create({
+    ...parsed.data,
+    id: newId(),
+    doctorId: doctor.id,
+    createdAt: now,
+    updatedAt: now,
   });
 
   revalidatePath("/households");
@@ -42,11 +49,11 @@ export async function updateHousehold(
 
   // Scoping the update by doctorId is what stops one doctor editing another's
   // records by guessing an id.
-  const { count } = await prisma.household.updateMany({
-    where: { id: householdId, doctorId: doctor.id },
-    data: parsed.data,
-  });
-  if (count === 0) return { message: "That household no longer exists." };
+  const updated = await orm.Household
+    .where((h) => h.id.eq(householdId))
+    .where((h) => h.doctorId.eq(doctor.id))
+    .update({ ...parsed.data, updatedAt: instantToDb(new Date()) });
+  if (!updated) return { message: "That household no longer exists." };
 
   revalidatePath("/households");
   revalidatePath(`/households/${householdId}`);
@@ -58,7 +65,10 @@ export async function deleteHousehold(formData: FormData) {
   const householdId = String(formData.get("householdId") ?? "");
   if (!householdId) return;
 
-  await prisma.household.deleteMany({ where: { id: householdId, doctorId: doctor.id } });
+  await orm.Household
+    .where((h) => h.id.eq(householdId))
+    .where((h) => h.doctorId.eq(doctor.id))
+    .delete();
 
   revalidatePath("/households");
   redirect("/households");

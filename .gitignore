@@ -47,3 +47,12 @@ next-env.d.ts
 /.agents
 /.windsurf
 /skills-lock.json
+
+# Prisma agent skills, copied out of the installed packages by the `postinstall`
+# hook (`prisma skills sync`). Regenerated on every install, so they are not
+# source — but the project's own .claude config, if any, still is.
+/.claude/skills/prisma-8/
+/.claude/skills/prisma-composer/
+/.cursor/
+/.agents/
+/.devin/

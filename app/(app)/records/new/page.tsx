@@ -3,12 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createMedicalRecord } from "@/app/actions/records";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
+import { calendarDateFromDb, instantFromDb } from "@/lib/datetime";
 import { formatDateTime, toDateTimeLocalValue } from "@/lib/datetime";
 import { ageFrom, fullName, SEX_LABELS } from "@/lib/domain";
 import { RecordForm } from "@/components/forms/record-form";
 import { blankRecord } from "@/lib/form-defaults";
-import { AllergyBanner, ALLERGY_SELECT } from "@/components/allergy-banner";
+import { AllergyBanner } from "@/components/allergy-banner";
 import { Card, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Document visit" };
@@ -19,32 +20,27 @@ export default async function NewRecordPage({ searchParams }: PageProps<"/record
 
   if (typeof patientId !== "string") notFound();
 
-  const patient = await prisma.patient.findFirst({
-    where: { id: patientId, household: { doctorId: doctor.id } },
-    select: {
-      id: true,
-      firstName: true,
-      middleName: true,
-      lastName: true,
-      dateOfBirth: true,
-      sex: true,
-      allergyStatus: true,
-      allergies: { select: ALLERGY_SELECT },
-      household: { select: { id: true, name: true } },
-    },
-  });
+  const patient = await orm.Patient
+    .select("id", "firstName", "middleName", "lastName", "dateOfBirth", "sex", "allergyStatus")
+    .include("allergies", (a) => a.select("id", "label", "reaction", "severity", "notes"))
+    .include("household", (h) => h.select("id", "name"))
+    .where((p) => p.id.eq(patientId))
+    .where((p) => p.household.some((h) => h.doctorId.eq(doctor.id)))
+    .first();
   if (!patient) notFound();
 
-  const undocumented = await prisma.appointment.findMany({
-    where: { patientId: patient.id, doctorId: doctor.id, medicalRecord: { is: null } },
-    orderBy: { scheduledAt: "desc" },
-    take: 20,
-    select: { id: true, scheduledAt: true, reason: true },
-  });
+  const undocumented = await orm.Appointment
+    .select("id", "scheduledAt", "reason")
+    .where((a) => a.patientId.eq(patient.id))
+    .where((a) => a.doctorId.eq(doctor.id))
+    .where((a) => a.medicalRecord.none((r) => r.id.isNotNull()))
+    .orderBy((a) => a.scheduledAt.desc())
+    .limit(20)
+    .all();
 
   const options = undocumented.map((a) => ({
     id: a.id,
-    label: `${formatDateTime(a.scheduledAt)} — ${a.reason}`,
+    label: `${formatDateTime(instantFromDb(a.scheduledAt))} — ${a.reason}`,
   }));
 
   const locked =
@@ -63,7 +59,7 @@ export default async function NewRecordPage({ searchParams }: PageProps<"/record
               {fullName(patient)}
             </Link>
             {" · "}
-            {SEX_LABELS[patient.sex]} · {ageFrom(patient.dateOfBirth)} · {patient.household.name} household
+            {SEX_LABELS[patient.sex]} · {ageFrom(calendarDateFromDb(patient.dateOfBirth))} · {patient.household.name} household
           </>
         }
       />

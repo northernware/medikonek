@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
-import { prisma } from "./prisma";
+import { orm } from "@/src/prisma/db";
 import { readSession } from "./session";
 
 export type CurrentDoctor = {
@@ -17,17 +17,9 @@ export type CurrentDoctor = {
 export const getCurrentDoctor = cache(async (): Promise<CurrentDoctor | null> => {
   const session = await readSession();
   if (!session) return null;
-  return prisma.doctor.findUnique({
-    where: { id: session.doctorId },
-    select: {
-      id: true,
-      email: true,
-      fullName: true,
-      specialty: true,
-      clinicName: true,
-      licenseNumber: true,
-    },
-  });
+  return orm.Doctor
+    .select("id", "email", "fullName", "specialty", "clinicName", "licenseNumber")
+    .first({ id: session.doctorId });
 });
 
 /// The gate every page, query and server action goes through. Server Actions are

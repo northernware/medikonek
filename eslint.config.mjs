@@ -12,8 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Generated Prisma client.
-    "app/generated/**",
+    // Emitted by `prisma contract emit` and `prisma migration plan` — artefacts,
+    // not sources, and the contract types are regenerated on every emit.
+    "src/prisma/contract.d.ts",
+    "migrations/snapshots/**",
   ]),
   {
     rules: {

@@ -1,4 +1,4 @@
-import type { AllergySeverity, ClinicalListStatus } from "@/app/generated/prisma/enums";
+import type { AllergySeverity, ClinicalListStatus } from "@/lib/enums";
 import { ALLERGY_SEVERITY_LABELS, ALLERGY_SEVERITY_TONE, sortAllergies } from "@/lib/clinical";
 import { Badge } from "./ui";
 
@@ -11,14 +11,6 @@ export type AllergyEntry = {
 };
 
 /** The `select` every query feeding this banner needs. */
-export const ALLERGY_SELECT = {
-  id: true,
-  label: true,
-  reaction: true,
-  severity: true,
-  notes: true,
-} as const;
-
 /**
  * Allergies at the top of a chart, in one of three states — and all three say
  * something. An empty list is not "safe": a patient nobody has asked reads as

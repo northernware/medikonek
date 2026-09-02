@@ -1,6 +1,8 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { prisma } from "../lib/prisma";
+import { db, orm } from "./db";
+import { calendarDateToDb, instantToDb } from "../../lib/datetime";
+import { newId } from "../../lib/ids";
 import {
   AllergySeverity,
   AppointmentStatus,
@@ -12,7 +14,7 @@ import {
   ServiceType,
   Sex,
   VisitPriority,
-} from "../app/generated/prisma/enums";
+} from "../../lib/enums";
 
 const DEMO_EMAIL = "doctor@medikonek.test";
 const DEMO_PASSWORD = "medikonek-demo";
@@ -27,38 +29,128 @@ function at(dayOffset: number, hour: number, minute = 0) {
   d.setDate(d.getDate() + dayOffset);
   if (d.getDay() === 0) d.setDate(d.getDate() + 1);
   d.setHours(hour, minute, 0, 0);
-  return d;
+  return instantToDb(d);
 }
 
 function born(year: number, month: number, day: number) {
-  return new Date(Date.UTC(year, month - 1, day));
+  return calendarDateToDb(new Date(Date.UTC(year, month - 1, day)));
+}
+
+type ClinicalSeed = { label: string; reaction?: string; severity?: AllergySeverity; notes?: string };
+type PatientSeed = Record<string, unknown> & {
+  allergies?: ClinicalSeed[];
+  conditions?: ClinicalSeed[];
+};
+
+/**
+ * Prisma 8 has no nested create, so these helpers keep the seed's data readable
+ * as one literal per household and do the flattening themselves. Ids and audit
+ * timestamps are the application's job now, so they are filled in here too.
+ */
+async function seedHousehold(
+  data: Record<string, unknown> & { patients: PatientSeed[] },
+) {
+  const now = instantToDb(new Date());
+  const { patients, ...household } = data;
+  const created = await orm.Household.create({
+    ...household,
+    id: newId(),
+    createdAt: now,
+    updatedAt: now,
+  } as Parameters<typeof orm.Household.create>[0]);
+
+  const rows: { id: string; firstName: string }[] = [];
+  for (const patient of patients) {
+    const { allergies = [], conditions = [], ...scalars } = patient;
+    const row = await orm.Patient.create({
+      ...scalars,
+      id: newId(),
+      householdId: created.id,
+      createdAt: now,
+      updatedAt: now,
+    } as Parameters<typeof orm.Patient.create>[0]);
+    for (const a of allergies) {
+      await orm.PatientAllergy.create({
+        ...a,
+        id: newId(),
+        patientId: row.id,
+        createdAt: now,
+      } as Parameters<typeof orm.PatientAllergy.create>[0]);
+    }
+    for (const c of conditions) {
+      await orm.PatientCondition.create({
+        id: newId(),
+        patientId: row.id,
+        label: c.label,
+        notes: c.notes ?? null,
+        createdAt: now,
+      });
+    }
+    rows.push({ id: row.id, firstName: row.firstName });
+  }
+
+  return { ...created, patients: rows };
+}
+
+async function seedAppointments(rows: Record<string, unknown>[]) {
+  const now = instantToDb(new Date());
+  for (const row of rows) {
+    await orm.Appointment.create({
+      ...row,
+      id: newId(),
+      createdAt: now,
+      updatedAt: now,
+    } as Parameters<typeof orm.Appointment.create>[0]);
+  }
+}
+
+async function seedRecord(
+  data: Record<string, unknown> & { prescriptions?: Record<string, unknown>[] },
+) {
+  const now = instantToDb(new Date());
+  const { prescriptions = [], ...record } = data;
+  const created = await orm.MedicalRecord.create({
+    ...record,
+    id: newId(),
+    createdAt: now,
+    updatedAt: now,
+  } as Parameters<typeof orm.MedicalRecord.create>[0]);
+  for (const rx of prescriptions) {
+    await orm.Prescription.create({
+      ...rx,
+      id: newId(),
+      medicalRecordId: created.id,
+      createdAt: now,
+    } as Parameters<typeof orm.Prescription.create>[0]);
+  }
+  return created;
 }
 
 async function main() {
   // Re-runnable: wipe the demo doctor and everything cascading from them.
-  await prisma.doctor.deleteMany({ where: { email: DEMO_EMAIL } });
+  await orm.Doctor.where((d) => d.email.eq(DEMO_EMAIL)).delete();
 
-  const doctor = await prisma.doctor.create({
-    data: {
+  const seededAt = instantToDb(new Date());
+  const doctor = await orm.Doctor.create({
+      id: newId(),
+      createdAt: seededAt,
+      updatedAt: seededAt,
       email: DEMO_EMAIL,
       passwordHash: await bcrypt.hash(DEMO_PASSWORD, 12),
       fullName: "Dr. Ana Reyes",
       specialty: "Family Medicine",
       clinicName: "Northern Family Clinic",
       licenseNumber: "PRC-0114532",
-    },
   });
 
-  const delaCruz = await prisma.household.create({
-    data: {
+  const delaCruz = await seedHousehold({
       doctorId: doctor.id,
       name: "Dela Cruz",
       address: "24 Mabini St., Barangay San Roque, Tuguegarao",
       contactNumber: "0917 442 1180",
       notes:
         "Hypertension on the father's side. Household of five, grandmother lives with them. Prefers Saturday morning slots.",
-      patients: {
-        create: [
+      patients: [
           {
             firstName: "Ramon",
             middleName: "Santos",
@@ -70,9 +162,7 @@ async function main() {
             contactNumber: "0917 442 1180",
             allergyStatus: ClinicalListStatus.NONE_KNOWN,
             conditionStatus: ClinicalListStatus.RECORDED,
-            conditions: {
-              create: [{ label: "Hypertension", notes: "Diagnosed 2021. On amlodipine 5 mg." }],
-            },
+            conditions: [{ label: "Hypertension", notes: "Diagnosed 2021. On amlodipine 5 mg." }],
           },
           {
             firstName: "Marilou",
@@ -83,8 +173,7 @@ async function main() {
             relationship: Relationship.SPOUSE,
             bloodType: BloodType.A_POS,
             allergyStatus: ClinicalListStatus.RECORDED,
-            allergies: {
-              create: [
+            allergies: [
                 {
                   label: "Penicillin",
                   reaction: "Urticaria and facial swelling",
@@ -92,7 +181,6 @@ async function main() {
                   notes: "First noted 2015.",
                 },
               ],
-            },
           },
           {
             firstName: "Joaquin",
@@ -102,16 +190,12 @@ async function main() {
             relationship: Relationship.CHILD,
             bloodType: BloodType.O_POS,
             allergyStatus: ClinicalListStatus.RECORDED,
-            allergies: {
-              create: [
+            allergies: [
                 { label: "Dust", reaction: "Sneezing, worse at night", severity: AllergySeverity.MILD },
                 { label: "Pollen", severity: AllergySeverity.MILD },
               ],
-            },
             conditionStatus: ClinicalListStatus.RECORDED,
-            conditions: {
-              create: [{ label: "Asthma", notes: "Mild intermittent. Salbutamol inhaler as needed." }],
-            },
+            conditions: [{ label: "Asthma", notes: "Mild intermittent. Salbutamol inhaler as needed." }],
           },
           {
             firstName: "Sofia",
@@ -131,35 +215,27 @@ async function main() {
             relationship: Relationship.GRANDPARENT,
             bloodType: BloodType.B_POS,
             allergyStatus: ClinicalListStatus.RECORDED,
-            allergies: {
-              create: [
+            allergies: [
                 { label: "Sulfa drugs", reaction: "Rash", severity: AllergySeverity.MODERATE },
                 { label: "Shellfish", reaction: "Lip swelling", severity: AllergySeverity.MILD },
               ],
-            },
             conditionStatus: ClinicalListStatus.RECORDED,
-            conditions: {
-              create: [
+            conditions: [
                 { label: "Diabetes", notes: "Type 2, on metformin." },
                 { label: "Arthritis", notes: "Osteoarthritis of both knees." },
               ],
-            },
           },
         ],
-      },
-    },
-    include: { patients: true },
+    
   });
 
-  const villanueva = await prisma.household.create({
-    data: {
+  const villanueva = await seedHousehold({
       doctorId: doctor.id,
       name: "Villanueva",
       address: "Blk 7 Lot 12, Carig Sur, Tuguegarao",
       contactNumber: "0918 220 7741",
       notes: "New to the practice, transferred from a clinic in Manila.",
-      patients: {
-        create: [
+      patients: [
           {
             firstName: "Elena",
             middleName: "Cruz",
@@ -170,13 +246,9 @@ async function main() {
             bloodType: BloodType.AB_NEG,
             contactNumber: "0918 220 7741",
             allergyStatus: ClinicalListStatus.RECORDED,
-            allergies: {
-              create: [{ label: "Latex", reaction: "Contact dermatitis", severity: AllergySeverity.MILD }],
-            },
+            allergies: [{ label: "Latex", reaction: "Contact dermatitis", severity: AllergySeverity.MILD }],
             conditionStatus: ClinicalListStatus.RECORDED,
-            conditions: {
-              create: [{ label: "Iron-deficiency anaemia", notes: "Typed in — not in the suggestion list." }],
-            },
+            conditions: [{ label: "Iron-deficiency anaemia", notes: "Typed in — not in the suggestion list." }],
           },
           {
             firstName: "Miguel",
@@ -187,9 +259,7 @@ async function main() {
             bloodType: BloodType.O_NEG,
           },
         ],
-      },
-    },
-    include: { patients: true },
+    
   });
 
   const byName = (household: { patients: { id: string; firstName: string }[] }, first: string) =>
@@ -204,8 +274,7 @@ async function main() {
   const miguel = byName(villanueva, "Miguel");
 
   // Today's clinic.
-  await prisma.appointment.createMany({
-    data: [
+  await seedAppointments([
       {
         patientId: ramon,
         doctorId: doctor.id,
@@ -261,12 +330,11 @@ async function main() {
         reason: "Cough and wheezing",
         status: AppointmentStatus.COMPLETED,
       },
-    ],
-  });
+    
+  ]);
 
   // Spread across the surrounding weeks so the month calendar has real shape.
-  await prisma.appointment.createMany({
-    data: [
+  await seedAppointments([
       {
         patientId: marilou,
         doctorId: doctor.id,
@@ -361,16 +429,16 @@ async function main() {
         reason: "Postnatal review",
         status: AppointmentStatus.CANCELLED,
       },
-    ],
-  });
+    
+  ]);
 
-  const asthmaVisit = await prisma.appointment.findFirst({
-    where: { patientId: joaquin, status: AppointmentStatus.COMPLETED },
-    select: { id: true },
-  });
+  const asthmaVisit = await orm.Appointment
+    .select("id")
+    .where((a) => a.patientId.eq(joaquin))
+    .where((a) => a.status.eq(AppointmentStatus.COMPLETED))
+    .first();
 
-  await prisma.medicalRecord.create({
-    data: {
+  await seedRecord({
       patientId: joaquin,
       doctorId: doctor.id,
       appointmentId: asthmaVisit?.id ?? null,
@@ -387,9 +455,8 @@ async function main() {
       assessment: "Mild intermittent asthma with viral-triggered exacerbation.",
       treatmentPlan:
         "Salbutamol MDI with spacer, 2 puffs every 4–6 hours as needed. Short course of oral prednisolone. Review in one week, sooner if work of breathing increases.",
-      followUpDate: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 4)),
-      prescriptions: {
-        create: [
+      followUpDate: calendarDateToDb(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 4))),
+      prescriptions: [
           {
             drugName: "Salbutamol MDI 100 mcg",
             dosage: "2 puffs",
@@ -405,12 +472,10 @@ async function main() {
             instructions: "After breakfast.",
           },
         ],
-      },
-    },
+    
   });
 
-  await prisma.medicalRecord.create({
-    data: {
+  await seedRecord({
       patientId: ramon,
       doctorId: doctor.id,
       visitDate: at(-40, 9, 15),
@@ -424,8 +489,7 @@ async function main() {
       assessment: "Hypertension, above target on current dose.",
       treatmentPlan:
         "Increase amlodipine to 10 mg daily. Reduce added salt; discussed home BP logging twice weekly. Recheck in six weeks.",
-      prescriptions: {
-        create: [
+      prescriptions: [
           {
             drugName: "Amlodipine 10 mg",
             dosage: "1 tablet",
@@ -434,12 +498,10 @@ async function main() {
             instructions: "Morning, with or without food.",
           },
         ],
-      },
-    },
+    
   });
 
-  await prisma.medicalRecord.create({
-    data: {
+  await seedRecord({
       patientId: corazon,
       doctorId: doctor.id,
       visitDate: at(-92, 10, 0),
@@ -455,8 +517,7 @@ async function main() {
       assessment: "Bilateral knee osteoarthritis. Diabetes reasonably controlled on metformin.",
       treatmentPlan:
         "Quadriceps strengthening handout given. Paracetamol as needed; avoid NSAIDs given renal function. Continue metformin, repeat HbA1c before next visit.",
-      prescriptions: {
-        create: [
+      prescriptions: [
           {
             drugName: "Metformin 500 mg",
             dosage: "1 tablet",
@@ -465,8 +526,7 @@ async function main() {
             instructions: "With meals.",
           },
         ],
-      },
-    },
+    
   });
 
   console.log(`Seeded demo practice.\n  email:    ${DEMO_EMAIL}\n  password: ${DEMO_PASSWORD}`);
@@ -477,4 +537,4 @@ main()
     console.error(error);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(() => db.close());

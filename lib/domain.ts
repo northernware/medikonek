@@ -8,7 +8,7 @@ import type {
   ServiceType,
   Sex,
   VisitPriority,
-} from "@/app/generated/prisma/enums";
+} from "@/lib/enums";
 
 export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
   HEAD: "Head of household",

@@ -3,10 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteMedicalRecord } from "@/app/actions/records";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
+import { calendarDateFromDb, instantFromDb } from "@/lib/datetime";
 import { formatCalendarDate, formatDateTime, toDateInputValue } from "@/lib/datetime";
 import { ageFrom, bloodPressure, bmi, fullName, SEX_LABELS } from "@/lib/domain";
-import { AllergyBanner, ALLERGY_SELECT } from "@/components/allergy-banner";
+import { AllergyBanner } from "@/components/allergy-banner";
 import { DangerZone } from "@/components/danger-zone";
 import { buttonClass, Card, CardHeader, Detail, PageHeader, Prose } from "@/components/ui";
 
@@ -16,30 +17,27 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
   const doctor = await requireDoctor();
   const { id } = await params;
 
-  const record = await prisma.medicalRecord.findFirst({
-    where: { id, doctorId: doctor.id },
-    include: {
-      patient: {
-        select: {
-          id: true,
-          firstName: true,
-          middleName: true,
-          lastName: true,
-          dateOfBirth: true,
-          sex: true,
-          allergyStatus: true,
-          allergies: { select: ALLERGY_SELECT },
-          household: { select: { id: true, name: true } },
-        },
-      },
-      appointment: { select: { id: true, scheduledAt: true, reason: true } },
-      followUpAppointment: { select: { id: true, scheduledAt: true } },
-      prescriptions: { orderBy: { createdAt: "asc" } },
-    },
-  });
+  const record = await orm.MedicalRecord
+    .include("patient", (p) =>
+      p
+        .select("id", "firstName", "middleName", "lastName", "dateOfBirth", "sex", "allergyStatus")
+        .include("allergies", (a) => a.select("id", "label", "reaction", "severity", "notes"))
+        .include("household", (h) => h.select("id", "name")),
+    )
+    .include("appointment", (a) => a.select("id", "scheduledAt", "reason"))
+    .include("followUpAppointment", (a) => a.select("id", "scheduledAt"))
+    .include("prescriptions", (rx) =>
+      rx
+        .select("id", "drugName", "dosage", "frequency", "duration", "instructions")
+        .orderBy((x) => x.createdAt.asc()),
+    )
+    .where((r) => r.id.eq(id))
+    .where((r) => r.doctorId.eq(doctor.id))
+    .first();
   if (!record) notFound();
 
   const { patient } = record;
+  const visitDate = instantFromDb(record.visitDate);
   const vitals = [
     { label: "Temp", value: record.temperatureC, unit: "°C" },
     { label: "Pulse", value: record.heartRate, unit: "bpm" },
@@ -61,8 +59,8 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
               {fullName(patient)}
             </Link>
             {" · "}
-            {SEX_LABELS[patient.sex]} · {ageFrom(patient.dateOfBirth, record.visitDate)} at visit ·{" "}
-            {formatDateTime(record.visitDate)}
+            {SEX_LABELS[patient.sex]} · {ageFrom(calendarDateFromDb(patient.dateOfBirth), visitDate)} at visit ·{" "}
+            {formatDateTime(visitDate)}
           </>
         }
         actions={
@@ -109,13 +107,13 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
                   href={`/appointments/${record.followUpAppointment.id}`}
                   className="text-accent-ink hover:underline"
                 >
-                  Booked for {formatDateTime(record.followUpAppointment.scheduledAt)}
+                  Booked for {formatDateTime(instantFromDb(record.followUpAppointment.scheduledAt))}
                 </Link>
               ) : (
                 <span className="flex flex-wrap items-center gap-2">
-                  <span>Due {formatCalendarDate(record.followUpDate)} — not booked</span>
+                  <span>Due {formatCalendarDate(calendarDateFromDb(record.followUpDate))} — not booked</span>
                   <Link
-                    href={`/appointments/new?patientId=${patient.id}&service=FOLLOW_UP_CHECKUP&date=${toDateInputValue(record.followUpDate)}&followUpFor=${record.id}`}
+                    href={`/appointments/new?patientId=${patient.id}&service=FOLLOW_UP_CHECKUP&date=${toDateInputValue(calendarDateFromDb(record.followUpDate))}&followUpFor=${record.id}`}
                     className={buttonClass("secondary")}
                   >
                     Book follow-up
@@ -133,7 +131,7 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
                 href={`/appointments/${record.appointment.id}`}
                 className="text-accent-ink hover:underline"
               >
-                {formatDateTime(record.appointment.scheduledAt)} — {record.appointment.reason}
+                {formatDateTime(instantFromDb(record.appointment.scheduledAt))} — {record.appointment.reason}
               </Link>
             }
           />

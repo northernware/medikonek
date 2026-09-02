@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { AppointmentStatus, ServiceType } from "@/app/generated/prisma/enums";
+import type { AppointmentStatus, ServiceType } from "@/lib/enums";
 import { formatDayHeading, formatTime } from "@/lib/datetime";
 import {
   APPOINTMENT_STATUS_LABELS,
@@ -105,16 +105,3 @@ function AppointmentRow({ appointment }: { appointment: AppointmentListItem }) {
   );
 }
 
-/** The `include` every query feeding this list needs. Scalars come along by default. */
-export const APPOINTMENT_LIST_INCLUDE = {
-  patient: {
-    select: {
-      id: true,
-      firstName: true,
-      middleName: true,
-      lastName: true,
-      household: { select: { id: true, name: true } },
-    },
-  },
-  medicalRecord: { select: { id: true } },
-} as const;

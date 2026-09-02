@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { updateHousehold } from "@/app/actions/households";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
 import { HouseholdForm } from "@/components/forms/household-form";
 import { Card, PageHeader } from "@/components/ui";
 
@@ -12,7 +12,10 @@ export default async function EditHouseholdPage({ params }: PageProps<"/househol
   const doctor = await requireDoctor();
   const { id } = await params;
 
-  const household = await prisma.household.findFirst({ where: { id, doctorId: doctor.id } });
+  const household = await orm.Household
+    .where((h) => h.id.eq(id))
+    .where((h) => h.doctorId.eq(doctor.id))
+    .first();
   if (!household) notFound();
 
   const action = updateHousehold.bind(null, household.id);

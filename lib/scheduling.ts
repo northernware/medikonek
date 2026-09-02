@@ -1,4 +1,4 @@
-import type { AppointmentStatus } from "@/app/generated/prisma/enums";
+import type { AppointmentStatus } from "@/lib/enums";
 import { CLINIC_TIME_ZONE, dayKey, fromDateTimeLocalValue } from "./datetime";
 
 /**

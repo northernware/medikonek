@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createPatient } from "@/app/actions/patients";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
 import { PatientForm } from "@/components/forms/patient-form";
 import { blankPatient } from "@/lib/form-defaults";
 import { Card, PageHeader } from "@/components/ui";
@@ -13,17 +13,18 @@ export default async function NewHouseholdMemberPage({ params }: PageProps<"/hou
   const doctor = await requireDoctor();
   const { id } = await params;
 
-  const household = await prisma.household.findFirst({
-    where: { id, doctorId: doctor.id },
-    select: { id: true, name: true },
-  });
+  const household = await orm.Household
+    .select("id", "name")
+    .where((h) => h.id.eq(id))
+    .where((h) => h.doctorId.eq(doctor.id))
+    .first();
   if (!household) notFound();
 
-  const households = await prisma.household.findMany({
-    where: { doctorId: doctor.id },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
+  const households = await orm.Household
+    .select("id", "name")
+    .where((h) => h.doctorId.eq(doctor.id))
+    .orderBy((h) => h.name.asc())
+    .all();
 
   return (
     <div className="space-y-6">

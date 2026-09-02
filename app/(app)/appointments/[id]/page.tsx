@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteAppointment, setAppointmentStatus } from "@/app/actions/appointments";
-import { AppointmentStatus } from "@/app/generated/prisma/enums";
+import { AppointmentStatus } from "@/lib/enums";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
+import { calendarDateFromDb, instantFromDb } from "@/lib/datetime";
 import { formatDateTime } from "@/lib/datetime";
 import {
   ageFrom,
@@ -19,7 +20,7 @@ import {
   VISIT_PRIORITY_LABELS,
   VISIT_PRIORITY_TONE,
 } from "@/lib/domain";
-import { AllergyBanner, ALLERGY_SELECT } from "@/components/allergy-banner";
+import { AllergyBanner } from "@/components/allergy-banner";
 import { DangerZone } from "@/components/danger-zone";
 import { Badge, buttonClass, Card, CardHeader, Detail, PageHeader, Prose } from "@/components/ui";
 
@@ -38,31 +39,21 @@ export default async function AppointmentPage({ params }: PageProps<"/appointmen
   const doctor = await requireDoctor();
   const { id } = await params;
 
-  const appointment = await prisma.appointment.findFirst({
-    where: { id, doctorId: doctor.id },
-    include: {
-      patient: {
-        select: {
-          id: true,
-          firstName: true,
-          middleName: true,
-          lastName: true,
-          dateOfBirth: true,
-          allergyStatus: true,
-          allergies: { select: ALLERGY_SELECT },
-          household: { select: { id: true, name: true } },
-        },
-      },
-      medicalRecord: { select: { id: true } },
-      previousAppointment: {
-        select: { id: true, scheduledAt: true, service: true },
-      },
-      followUps: {
-        orderBy: { scheduledAt: "asc" },
-        select: { id: true, scheduledAt: true, service: true },
-      },
-    },
-  });
+  const appointment = await orm.Appointment
+    .include("patient", (p) =>
+      p
+        .select("id", "firstName", "middleName", "lastName", "dateOfBirth", "allergyStatus")
+        .include("allergies", (a) => a.select("id", "label", "reaction", "severity", "notes"))
+        .include("household", (h) => h.select("id", "name")),
+    )
+    .include("medicalRecord", (r) => r.select("id"))
+    .include("previousAppointment", (a) => a.select("id", "scheduledAt", "service"))
+    .include("followUps", (a) =>
+      a.select("id", "scheduledAt", "service").orderBy((x) => x.scheduledAt.asc()),
+    )
+    .where((a) => a.id.eq(id))
+    .where((a) => a.doctorId.eq(doctor.id))
+    .first();
   if (!appointment) notFound();
 
   const { patient } = appointment;
@@ -73,7 +64,7 @@ export default async function AppointmentPage({ params }: PageProps<"/appointmen
         title={fullName(patient)}
         subtitle={
           <>
-            {formatDateTime(appointment.scheduledAt)} · {appointment.durationMinutes} min ·{" "}
+            {formatDateTime(instantFromDb(appointment.scheduledAt))} · {appointment.durationMinutes} min ·{" "}
             <Link href={`/households/${patient.household.id}`} className="text-accent-ink hover:underline">
               {patient.household.name} household
             </Link>
@@ -102,7 +93,7 @@ export default async function AppointmentPage({ params }: PageProps<"/appointmen
           <Badge tone={APPOINTMENT_STATUS_TONE[appointment.status]}>
             {APPOINTMENT_STATUS_LABELS[appointment.status]}
           </Badge>
-          <Badge tone="neutral">{APPOINTMENT_TYPE_LABELS[appointment.type]}</Badge>
+          <Badge tone="neutral">{APPOINTMENT_TYPE_LABELS[appointment.visitType]}</Badge>
           {appointment.priority !== "ROUTINE" ? (
             <Badge tone={VISIT_PRIORITY_TONE[appointment.priority]}>
               {VISIT_PRIORITY_LABELS[appointment.priority]}
@@ -127,7 +118,7 @@ export default async function AppointmentPage({ params }: PageProps<"/appointmen
             label="Patient"
             value={
               <Link href={`/patients/${patient.id}`} className="text-accent-ink hover:underline">
-                {fullName(patient)}, {ageFrom(patient.dateOfBirth)}
+                {fullName(patient)}, {ageFrom(calendarDateFromDb(patient.dateOfBirth))}
               </Link>
             }
           />
@@ -141,7 +132,7 @@ export default async function AppointmentPage({ params }: PageProps<"/appointmen
                   href={`/appointments/${appointment.previousAppointment.id}`}
                   className="text-accent-ink hover:underline"
                 >
-                  {formatDateTime(appointment.previousAppointment.scheduledAt)} —{" "}
+                  {formatDateTime(instantFromDb(appointment.previousAppointment.scheduledAt))} —{" "}
                   {SERVICE_LABELS[appointment.previousAppointment.service]}
                 </Link>
               ) : null
@@ -155,7 +146,7 @@ export default async function AppointmentPage({ params }: PageProps<"/appointmen
                   {appointment.followUps.map((f) => (
                     <li key={f.id}>
                       <Link href={`/appointments/${f.id}`} className="text-accent-ink hover:underline">
-                        {formatDateTime(f.scheduledAt)} — {SERVICE_LABELS[f.service]}
+                        {formatDateTime(instantFromDb(f.scheduledAt))} — {SERVICE_LABELS[f.service]}
                       </Link>
                     </li>
                   ))}

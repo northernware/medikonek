@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { setAppointmentStatus } from "@/app/actions/appointments";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
 import { followUpsDue } from "@/lib/queries";
 import {
   clinicDayRange,
@@ -9,6 +9,9 @@ import {
   formatDate,
   formatDayHeading,
   formatTime,
+  instantFromDb,
+  instantToDb,
+  calendarDateFromDb,
 } from "@/lib/datetime";
 import {
   ACTIVE_STATUSES,
@@ -17,7 +20,7 @@ import {
   fullName,
   SERVICE_LABELS,
 } from "@/lib/domain";
-import { APPOINTMENT_LIST_INCLUDE } from "@/components/appointment-list";
+import { appointmentListQuery, toAppointmentListItem } from "@/lib/queries";
 import { Badge, buttonClass, Card, CardHeader, EmptyState, PageHeader, Stat } from "@/components/ui";
 
 export default async function DashboardPage() {
@@ -25,55 +28,58 @@ export default async function DashboardPage() {
   const now = new Date();
   const today = clinicDayRange(now);
 
-  const [todaysAppointments, waiting, dueFollowUps, missed, upcomingCount, householdCount, patientCount] =
+  const [todaysRows, waitingRows, dueFollowUpRows, missedRows, upcomingCount, householdCount, patientCount] =
     await Promise.all([
-      prisma.appointment.findMany({
-        where: { doctorId: doctor.id, scheduledAt: { gte: today.start, lt: today.end } },
-        include: APPOINTMENT_LIST_INCLUDE,
-        orderBy: { scheduledAt: "asc" },
-      }),
+      appointmentListQuery()
+        .where((a) => a.doctorId.eq(doctor.id))
+        .where((a) => a.scheduledAt.gte(instantToDb(today.start)))
+        .where((a) => a.scheduledAt.lt(instantToDb(today.end)))
+        .orderBy((a) => a.scheduledAt.asc())
+        .all(),
       // The waiting room: checked in, wherever that appointment sits in time.
-      prisma.appointment.findMany({
-        where: { doctorId: doctor.id, status: "CHECKED_IN" },
-        orderBy: { scheduledAt: "asc" },
-        select: {
-          id: true,
-          scheduledAt: true,
-          service: true,
-          reason: true,
-          patient: { select: { id: true, firstName: true, middleName: true, lastName: true } },
-          medicalRecord: { select: { id: true } },
-        },
-      }),
+      orm.Appointment
+        .select("id", "scheduledAt", "service", "reason")
+        .include("patient", (p) => p.select("id", "firstName", "middleName", "lastName"))
+        .include("medicalRecord", (r) => r.select("id"))
+        .where((a) => a.doctorId.eq(doctor.id))
+        .where((a) => a.status.eq("CHECKED_IN"))
+        .orderBy((a) => a.scheduledAt.asc())
+        .all(),
       followUpsDue(doctor.id),
-      prisma.appointment.findMany({
-        where: {
-          doctorId: doctor.id,
-          status: { in: ["CANCELLED", "NO_SHOW"] },
-          scheduledAt: { gte: new Date(now.getTime() - 30 * 86_400_000), lt: today.end },
-        },
-        orderBy: { scheduledAt: "desc" },
-        take: 8,
-        select: {
-          id: true,
-          scheduledAt: true,
-          status: true,
-          reason: true,
-          patient: { select: { id: true, firstName: true, middleName: true, lastName: true } },
-        },
-      }),
-      prisma.appointment.count({
-        where: {
-          doctorId: doctor.id,
-          scheduledAt: { gte: today.end },
-          status: { in: ACTIVE_STATUSES },
-        },
-      }),
-      prisma.household.count({ where: { doctorId: doctor.id } }),
-      prisma.patient.count({ where: { household: { doctorId: doctor.id } } }),
+      orm.Appointment
+        .select("id", "scheduledAt", "status", "reason")
+        .include("patient", (p) => p.select("id", "firstName", "middleName", "lastName"))
+        .where((a) => a.doctorId.eq(doctor.id))
+        .where((a) => a.status.in(["CANCELLED", "NO_SHOW"]))
+        .where((a) => a.scheduledAt.gte(instantToDb(new Date(now.getTime() - 30 * 86_400_000))))
+        .where((a) => a.scheduledAt.lt(instantToDb(today.end)))
+        .orderBy((a) => a.scheduledAt.desc())
+        .limit(8)
+        .all(),
+      orm.Appointment
+        .where((a) => a.doctorId.eq(doctor.id))
+        .where((a) => a.scheduledAt.gte(instantToDb(today.end)))
+        .where((a) => a.status.in(ACTIVE_STATUSES))
+        .aggregate((agg) => ({ n: agg.count() })),
+      orm.Household
+        .where((h) => h.doctorId.eq(doctor.id))
+        .aggregate((agg) => ({ n: agg.count() })),
+      orm.Patient
+        .where((p) => p.household.some((h) => h.doctorId.eq(doctor.id)))
+        .aggregate((agg) => ({ n: agg.count() })),
     ]);
 
-  const remaining = todaysAppointments.filter(
+  // Prisma 8 reads temporal columns as text; the UI works in `Date`, so each list
+  // is converted once here rather than at every call site below.
+  const todays = todaysRows.map(toAppointmentListItem);
+  const waiting = waitingRows.map((a) => ({ ...a, scheduledAt: instantFromDb(a.scheduledAt) }));
+  const missed = missedRows.map((a) => ({ ...a, scheduledAt: instantFromDb(a.scheduledAt) }));
+  const dueFollowUps = dueFollowUpRows.map((r) => ({
+    ...r,
+    visitDate: instantFromDb(r.visitDate),
+    followUpDate: r.followUpDate ? calendarDateFromDb(r.followUpDate) : null,
+  }));
+  const remaining = todays.filter(
     (a) => ACTIVE_STATUSES.includes(a.status) && a.scheduledAt >= now,
   ).length;
 
@@ -99,7 +105,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat
           label="Today"
-          value={todaysAppointments.length}
+          value={todays.length}
           hint={remaining > 0 ? `${remaining} still to come` : "Nothing left today"}
         />
         <Stat
@@ -112,7 +118,7 @@ export default async function DashboardPage() {
           value={dueFollowUps.length}
           hint={dueFollowUps.length > 0 ? "Asked for, not booked" : "All booked"}
         />
-        <Stat label="Upcoming" value={upcomingCount} hint="Booked after today" />
+        <Stat label="Upcoming" value={upcomingCount.n} hint="Booked after today" />
       </div>
 
       {waiting.length > 0 ? (
@@ -167,11 +173,11 @@ export default async function DashboardPage() {
             </Link>
           }
         />
-        {todaysAppointments.length === 0 ? (
+        {todays.length === 0 ? (
           <EmptyState title="A clear day" description="No appointments booked for today." />
         ) : (
           <ul className="divide-y divide-border">
-            {todaysAppointments.map((a) => (
+            {todays.map((a) => (
               <li
                 key={a.id}
                 className="flex flex-wrap items-center gap-3 px-5 py-3.5 transition-colors hover:bg-surface-muted"
@@ -281,8 +287,8 @@ export default async function DashboardPage() {
       ) : null}
 
       <div className="grid grid-cols-2 gap-3">
-        <Stat label="Households" value={householdCount} />
-        <Stat label="Patients" value={patientCount} />
+        <Stat label="Households" value={householdCount.n} />
+        <Stat label="Patients" value={patientCount.n} />
       </div>
     </div>
   );

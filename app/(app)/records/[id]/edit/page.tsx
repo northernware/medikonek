@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { updateMedicalRecord } from "@/app/actions/records";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
+import { calendarDateFromDb, instantFromDb } from "@/lib/datetime";
 import { formatDateTime, toDateInputValue, toDateTimeLocalValue } from "@/lib/datetime";
 import { fullName } from "@/lib/domain";
 import { RecordForm } from "@/components/forms/record-form";
@@ -18,14 +19,17 @@ export default async function EditRecordPage({ params }: PageProps<"/records/[id
   const doctor = await requireDoctor();
   const { id } = await params;
 
-  const record = await prisma.medicalRecord.findFirst({
-    where: { id, doctorId: doctor.id },
-    include: {
-      patient: { select: { id: true, firstName: true, middleName: true, lastName: true } },
-      appointment: { select: { id: true, scheduledAt: true, reason: true } },
-      prescriptions: { orderBy: { createdAt: "asc" } },
-    },
-  });
+  const record = await orm.MedicalRecord
+    .include("patient", (p) => p.select("id", "firstName", "middleName", "lastName"))
+    .include("appointment", (a) => a.select("id", "scheduledAt", "reason"))
+    .include("prescriptions", (p) =>
+      p
+        .select("id", "drugName", "dosage", "frequency", "duration", "instructions")
+        .orderBy((x) => x.createdAt.asc()),
+    )
+    .where((r) => r.id.eq(id))
+    .where((r) => r.doctorId.eq(doctor.id))
+    .first();
   if (!record) notFound();
 
   return (
@@ -40,12 +44,12 @@ export default async function EditRecordPage({ params }: PageProps<"/records/[id
             record.appointment
               ? {
                   id: record.appointment.id,
-                  label: `${formatDateTime(record.appointment.scheduledAt)} — ${record.appointment.reason}`,
+                  label: `${formatDateTime(instantFromDb(record.appointment.scheduledAt))} — ${record.appointment.reason}`,
                 }
               : undefined
           }
           defaults={{
-            visitDate: toDateTimeLocalValue(record.visitDate),
+            visitDate: toDateTimeLocalValue(instantFromDb(record.visitDate)),
             appointmentId: record.appointmentId ?? "",
             chiefComplaint: record.chiefComplaint,
             historyOfPresentIllness: text(record.historyOfPresentIllness),
@@ -60,7 +64,7 @@ export default async function EditRecordPage({ params }: PageProps<"/records/[id
             oxygenSaturation: num(record.oxygenSaturation),
             assessment: text(record.assessment),
             treatmentPlan: text(record.treatmentPlan),
-            followUpDate: record.followUpDate ? toDateInputValue(record.followUpDate) : "",
+            followUpDate: record.followUpDate ? toDateInputValue(calendarDateFromDb(record.followUpDate)) : "",
             notes: text(record.notes),
             prescriptions: record.prescriptions.map((rx) => ({
               drugName: rx.drugName,
