@@ -1,4 +1,4 @@
-import type { AllergySeverity, ClinicalListStatus } from "@/app/generated/prisma/enums";
+import type { AllergySeverity, ClinicalListStatus } from "@/lib/enums";
 
 /**
  * Suggestion catalogues for the allergy and condition pickers.

@@ -17,7 +17,7 @@ contact number.
 ## Stack
 
 - **Next.js 16** (App Router, Server Components, Server Actions) + React 19
-- **Prisma 7** against **PostgreSQL**, via the `@prisma/adapter-pg` driver adapter
+- **Prisma 8** (Prisma Next) against **PostgreSQL**, via `@prisma/orm-postgres`
 - **Tailwind CSS v4** with a light/dark clinical palette in `app/globals.css`
 - **Auth**: email + bcrypt password, session as a signed JWT (`jose`) in an
   HttpOnly cookie
@@ -27,9 +27,8 @@ contact number.
 
 ```bash
 npm install
-cp .env.example .env        # then fill in SESSION_SECRET (see below)
-npm run db:start            # local Postgres, no Docker needed
-npm run db:migrate          # apply migrations
+cp .env.example .env        # then fill in DATABASE_URL and SESSION_SECRET
+npm run db:migrate          # bring the database up to the contract
 npm run db:seed             # optional: a demo practice to click around in
 npm run dev
 ```
@@ -47,24 +46,39 @@ Delete it before going anywhere near real data.
 
 ### Database
 
-`npm run db:start` runs a local Prisma Postgres instance in the background and
-serves it at `postgres://postgres:postgres@localhost:51214/template1`.
-`npm run db:stop` shuts it down.
-
-### Pointing at a hosted database
+The data layer is Prisma 8 (Prisma Next), which is contract-first: the schema
+lives in `src/prisma/contract.prisma`, and `prisma contract emit` derives the
+runtime types (`contract.d.ts`) and the artefact the client reads
+(`contract.json`) from it. Both are committed, and `prebuild` re-emits them, so a
+clean checkout typechecks and builds without a database.
 
 Any PostgreSQL connection string works — Prisma Postgres, Neon, Supabase, RDS or
-your own server. Put it in `DATABASE_URL` and apply the schema:
+your own server. Put it in `DATABASE_URL`; `npm run db:migrate` applies the
+migrations under `migrations/app/` and needs no shadow database.
+
+Changing the schema is three steps: edit `src/prisma/contract.prisma`, run
+`npm run db:emit`, then either `npm run db:update` to push the change straight
+into a development database, or `npm run db:plan` to write a migration to disk
+for the ones you deploy to. `npm run db:verify` reports whether a database
+matches the contract.
+
+### Upgrading a database created before Prisma 8
+
+A database built by the old Prisma 7 migrations is one change away from matching
+the contract: Prisma 7 enforced the two `MedicalRecord` links with bare unique
+indexes, and Prisma 8 declares uniqueness as a constraint. Everything else — the
+tables, columns, native enum types and other indexes — is byte-identical.
 
 ```bash
-npm run db:deploy     # prisma migrate deploy — applies migrations, no shadow DB
+npm run db:verify   # "Marker missing" — Prisma 8 has never signed this database
+npm run db:update   # drops the two indexes, adds the constraints, signs it
 ```
 
-`db:deploy` is the command for a hosted database; `db:migrate` (`migrate dev`) is
-for *authoring* a new migration and needs a throwaway shadow database, which a
-hosted instance rarely offers. The workflow is: change `prisma/schema.prisma`,
-run `db:migrate` against the local server to generate the migration, commit it,
-then `db:deploy` against the hosted one.
+`db:update` prints the plan and asks for confirmation, because dropping an index
+is destructive in general; here each one is immediately replaced by the unique
+constraint's own index, so the guarantee never lapses. Confirm it by passing the
+database's name (`npm run db:update -- --confirm <dbname>`) or by answering the
+prompt. Afterwards `db:verify` reports that marker and schema match the contract.
 
 Do not run `db:seed` against a database with real patients in it — it creates a
 demo practice.
@@ -77,10 +91,12 @@ demo practice.
 | `npm run build` / `npm start` | Production build and serve |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
-| `npm run db:start` / `db:stop` | Local Postgres instance |
-| `npm run db:migrate` | Create and apply a migration (needs `SHADOW_DATABASE_URL`) |
+| `npm run db:emit` | Re-emit `contract.json` / `contract.d.ts` from the contract |
+| `npm run db:update` | Push contract changes straight into a dev database |
+| `npm run db:plan` | Write a migration to `migrations/app/` |
+| `npm run db:migrate` | Apply pending migrations to `DATABASE_URL` |
+| `npm run db:verify` | Check a database against the contract |
 | `npm run db:seed` | Load the demo practice |
-| `npm run db:studio` | Prisma Studio |
 
 ## How it fits together
 
@@ -98,11 +114,20 @@ app/
 lib/
   auth.ts            getCurrentDoctor / requireDoctor
   session.ts         JWT cookie create / read / destroy
-  prisma.ts          client + pg driver adapter, cached across hot reloads
+  queries.ts         the reads more than one page needs
   validation.ts      Zod schemas and the FormState shape forms read
-  datetime.ts        clinic-timezone formatting and input parsing
+  datetime.ts        clinic-timezone formatting, input parsing, DB text <-> Date
   domain.ts          enum labels, age, BP, BMI
+  enums.ts           the contract's enums as values the app can reference
+  ids.ts             primary keys for new rows
 components/          UI kit, shared lists, and the four forms
+src/prisma/
+  contract.prisma    the data contract — the schema you edit
+  contract.json      emitted artefact the client reads (do not edit)
+  contract.d.ts      emitted types (do not edit)
+  db.ts              the client, cached across hot reloads
+  seed.ts            the demo practice
+migrations/app/      migrations planned from the contract
 ```
 
 ### Data model

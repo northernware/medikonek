@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
+import { calendarDateFromDb, instantFromDb } from "@/lib/datetime";
 import { formatCalendarDate, formatDate } from "@/lib/datetime";
 import { ageFrom, fullName, SEX_LABELS } from "@/lib/domain";
 import { PrintButton } from "@/components/print-button";
@@ -13,26 +14,24 @@ export default async function PrescriptionPage({ params }: PageProps<"/records/[
   const doctor = await requireDoctor();
   const { id } = await params;
 
-  const record = await prisma.medicalRecord.findFirst({
-    where: { id, doctorId: doctor.id },
-    include: {
-      patient: {
-        select: {
-          id: true,
-          firstName: true,
-          middleName: true,
-          lastName: true,
-          dateOfBirth: true,
-          sex: true,
-          allergies: { select: { id: true, label: true, severity: true } },
-        },
-      },
-      prescriptions: { orderBy: { createdAt: "asc" } },
-    },
-  });
+  const record = await orm.MedicalRecord
+    .include("patient", (p) =>
+      p
+        .select("id", "firstName", "middleName", "lastName", "dateOfBirth", "sex")
+        .include("allergies", (a) => a.select("id", "label", "severity")),
+    )
+    .include("prescriptions", (rx) =>
+      rx
+        .select("id", "drugName", "dosage", "frequency", "duration", "instructions")
+        .orderBy((x) => x.createdAt.asc()),
+    )
+    .where((r) => r.id.eq(id))
+    .where((r) => r.doctorId.eq(doctor.id))
+    .first();
   if (!record) notFound();
 
   const { patient } = record;
+  const visitDate = instantFromDb(record.visitDate);
 
   return (
     <div className="space-y-5">
@@ -41,7 +40,7 @@ export default async function PrescriptionPage({ params }: PageProps<"/records/[
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Prescription</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            {fullName(patient)} · {formatDate(record.visitDate)}
+            {fullName(patient)} · {formatDate(visitDate)}
           </p>
         </div>
         <div className="flex gap-2">
@@ -72,7 +71,7 @@ export default async function PrescriptionPage({ params }: PageProps<"/records/[
             </div>
             <p className="text-right text-sm">
               <span className="block font-medium">Date</span>
-              {formatDate(record.visitDate)}
+              {formatDate(visitDate)}
             </p>
           </header>
 
@@ -81,12 +80,12 @@ export default async function PrescriptionPage({ params }: PageProps<"/records/[
               <span className="font-medium">Patient:</span> {fullName(patient)}
             </p>
             <p>
-              <span className="font-medium">Age / Sex:</span> {ageFrom(patient.dateOfBirth, record.visitDate)}{" "}
+              <span className="font-medium">Age / Sex:</span> {ageFrom(calendarDateFromDb(patient.dateOfBirth), visitDate)}{" "}
               / {SEX_LABELS[patient.sex]}
             </p>
             <p className="col-span-2">
               <span className="font-medium">Date of birth:</span>{" "}
-              {formatCalendarDate(patient.dateOfBirth)}
+              {formatCalendarDate(calendarDateFromDb(patient.dateOfBirth))}
             </p>
             {patient.allergies.length > 0 ? (
               <p className="col-span-2 mt-1 font-medium">

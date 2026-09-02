@@ -11,7 +11,7 @@ import {
   ServiceType,
   Sex,
   VisitPriority,
-} from "@/app/generated/prisma/enums";
+} from "@/lib/enums";
 
 /** What every server action hands back to `useActionState`. */
 export type FormState = {

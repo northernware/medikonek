@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
-import type { ServiceType } from "@/app/generated/prisma/enums";
+import type { ServiceType } from "@/lib/enums";
 import { Field, FieldGrid, FormError, Select, SubmitButton, TextArea, TextInput } from "@/components/form";
 import { buttonClass } from "@/components/ui";
 import { formatDayKeyFull } from "@/lib/datetime";

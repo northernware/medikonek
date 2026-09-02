@@ -3,7 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deletePatient } from "@/app/actions/patients";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
+import { appointmentListQuery, toAppointmentListItem } from "@/lib/queries";
+import { calendarDateFromDb, instantFromDb } from "@/lib/datetime";
 import { formatCalendarDate, formatDate } from "@/lib/datetime";
 import {
   ageFrom,
@@ -13,18 +15,19 @@ import {
   RELATIONSHIP_LABELS,
   SEX_LABELS,
 } from "@/lib/domain";
-import { AppointmentList, APPOINTMENT_LIST_INCLUDE } from "@/components/appointment-list";
-import { AllergyBanner, ALLERGY_SELECT } from "@/components/allergy-banner";
+import { AppointmentList } from "@/components/appointment-list";
+import { AllergyBanner } from "@/components/allergy-banner";
 import { DangerZone } from "@/components/danger-zone";
 import { Badge, buttonClass, Card, CardHeader, Detail, EmptyState, PageHeader } from "@/components/ui";
 
 export async function generateMetadata({ params }: PageProps<"/patients/[id]">): Promise<Metadata> {
   const doctor = await requireDoctor();
   const { id } = await params;
-  const patient = await prisma.patient.findFirst({
-    where: { id, household: { doctorId: doctor.id } },
-    select: { firstName: true, middleName: true, lastName: true },
-  });
+  const patient = await orm.Patient
+    .select("firstName", "middleName", "lastName")
+    .where((p) => p.id.eq(id))
+    .where((p) => p.household.some((h) => h.doctorId.eq(doctor.id)))
+    .first();
   return { title: patient ? fullName(patient) : "Patient" };
 }
 
@@ -32,36 +35,40 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
   const doctor = await requireDoctor();
   const { id } = await params;
 
-  const patient = await prisma.patient.findFirst({
-    where: { id, household: { doctorId: doctor.id } },
-    include: {
-      household: { select: { id: true, name: true, contactNumber: true } },
-      allergies: { select: ALLERGY_SELECT },
-      conditions: { orderBy: { label: "asc" }, select: { id: true, label: true, notes: true } },
-      medicalRecords: {
-        orderBy: { visitDate: "desc" },
-        select: {
-          id: true,
-          visitDate: true,
-          chiefComplaint: true,
-          assessment: true,
-          systolic: true,
-          diastolic: true,
-          temperatureC: true,
-          weightKg: true,
-          _count: { select: { prescriptions: true } },
-        },
-      },
-    },
-  });
+  const patient = await orm.Patient
+    .include("household", (h) => h.select("id", "name", "contactNumber"))
+    .include("allergies", (a) => a.select("id", "label", "reaction", "severity", "notes"))
+    .include("conditions", (c) =>
+      c.select("id", "label", "notes").orderBy((x) => x.label.asc()),
+    )
+    .include("medicalRecords", (r) =>
+      r
+        .select(
+          "id",
+          "visitDate",
+          "chiefComplaint",
+          "assessment",
+          "systolic",
+          "diastolic",
+          "temperatureC",
+          "weightKg",
+        )
+        .include("prescriptions", (rx) => rx.count())
+        .orderBy((x) => x.visitDate.desc()),
+    )
+    .where((p) => p.id.eq(id))
+    .where((p) => p.household.some((h) => h.doctorId.eq(doctor.id)))
+    .first();
   if (!patient) notFound();
 
-  const appointments = await prisma.appointment.findMany({
-    where: { patientId: patient.id, doctorId: doctor.id },
-    include: APPOINTMENT_LIST_INCLUDE,
-    orderBy: { scheduledAt: "desc" },
-    take: 8,
-  });
+  const appointments = (
+    await appointmentListQuery()
+      .where((a) => a.patientId.eq(patient.id))
+      .where((a) => a.doctorId.eq(doctor.id))
+      .orderBy((a) => a.scheduledAt.desc())
+      .limit(8)
+      .all()
+  ).map(toAppointmentListItem);
 
   return (
     <div className="space-y-6">
@@ -74,7 +81,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
             </Link>
             {" · "}
             {RELATIONSHIP_LABELS[patient.relationship]} · {SEX_LABELS[patient.sex]} ·{" "}
-            {ageFrom(patient.dateOfBirth)}
+            {ageFrom(calendarDateFromDb(patient.dateOfBirth))}
           </>
         }
         actions={
@@ -96,7 +103,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
 
       <Card className="p-5">
         <dl className="grid gap-4 sm:grid-cols-3">
-          <Detail label="Date of birth" value={formatCalendarDate(patient.dateOfBirth)} />
+          <Detail label="Date of birth" value={formatCalendarDate(calendarDateFromDb(patient.dateOfBirth))} />
           <Detail label="Blood type" value={BLOOD_TYPE_LABELS[patient.bloodType]} />
           <Detail label="Contact" value={patient.contactNumber ?? patient.household.contactNumber} />
           <Detail label="Email" value={patient.email} />
@@ -176,7 +183,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
                   <Link href={`/records/${record.id}`} className="block px-5 py-4">
                     <div className="flex items-baseline gap-4">
                       <span className="tabular w-28 shrink-0 text-sm text-ink-muted">
-                        {formatDate(record.visitDate)}
+                        {formatDate(instantFromDb(record.visitDate))}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium">{record.chiefComplaint}</span>
@@ -186,9 +193,9 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
                           </span>
                         ) : null}
                       </span>
-                      {record._count.prescriptions > 0 ? (
+                      {record.prescriptions > 0 ? (
                         <Badge tone="accent">
-                          {record._count.prescriptions} Rx
+                          {record.prescriptions} Rx
                         </Badge>
                       ) : null}
                     </div>

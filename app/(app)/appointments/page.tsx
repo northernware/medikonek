@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { Prisma } from "@/app/generated/prisma/client";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { AppointmentList, APPOINTMENT_LIST_INCLUDE } from "@/components/appointment-list";
+import { appointmentListQuery, toAppointmentListItem } from "@/lib/queries";
+import { instantToDb } from "@/lib/datetime";
+import { AppointmentList } from "@/components/appointment-list";
 import { buttonClass, Card, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Appointments" };
@@ -21,20 +21,17 @@ export default async function AppointmentsPage({ searchParams }: PageProps<"/app
   const { view } = await searchParams;
   const active: ViewKey = VIEWS.some((v) => v.key === view) ? (view as ViewKey) : "upcoming";
 
-  const now = new Date();
-  const when: Prisma.AppointmentWhereInput =
-    active === "upcoming"
-      ? { scheduledAt: { gte: now } }
-      : active === "past"
-        ? { scheduledAt: { lt: now } }
-        : {};
+  const now = instantToDb(new Date());
 
-  const appointments = await prisma.appointment.findMany({
-    where: { doctorId: doctor.id, ...when },
-    include: APPOINTMENT_LIST_INCLUDE,
-    orderBy: { scheduledAt: active === "past" ? "desc" : "asc" },
-    take: 200,
-  });
+  let query = appointmentListQuery()
+    .where((a) => a.doctorId.eq(doctor.id))
+    .orderBy((a) => (active === "past" ? a.scheduledAt.desc() : a.scheduledAt.asc()))
+    .limit(200);
+
+  if (active === "upcoming") query = query.where((a) => a.scheduledAt.gte(now));
+  else if (active === "past") query = query.where((a) => a.scheduledAt.lt(now));
+
+  const appointments = (await query.all()).map(toAppointmentListItem);
 
   return (
     <div className="space-y-6">

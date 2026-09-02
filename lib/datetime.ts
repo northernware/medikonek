@@ -34,6 +34,38 @@ function zoneOffsetMs(at: Date, timeZone: string) {
   return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - at.getTime();
 }
 
+import type { TimestampString } from "@prisma/orm-postgres/target/codec-types";
+
+// --- Database boundary ------------------------------------------------------
+// Prisma 8 reads and writes temporal columns as PostgreSQL's own text rather than
+// as `Date`. The columns are `timestamp(3)` and `date`, neither of which carries a
+// zone, and the instants in them have always been UTC. These four functions are
+// the only places that know that, so the rest of the app keeps working in `Date`.
+
+/** A `timestamp(3)` value ("2026-09-02 00:30:00") as the UTC instant it records. */
+export function instantFromDb(value: string): Date {
+  return new Date(`${value.replace(" ", "T")}Z`);
+}
+
+/**
+ * An instant as the UTC wall-clock text a `timestamp(3)` column stores. The
+ * column's type is branded, so the cast is what lets a plain string satisfy it.
+ */
+export function instantToDb(at: Date): TimestampString<3> {
+  return at.toISOString().slice(0, 23) as TimestampString<3>;
+}
+
+/** A `date` value ("1990-05-04") as the UTC-midnight `Date` the app formats. */
+export function calendarDateFromDb(value: string): Date {
+  const [y, m, d] = value.slice(0, 10).split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+/** A UTC-midnight `Date` as the text a `date` column stores. */
+export function calendarDateToDb(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 // --- Instants (appointments, visit timestamps) ------------------------------
 
 /** `<input type="datetime-local">` value for an instant, in clinic time. */

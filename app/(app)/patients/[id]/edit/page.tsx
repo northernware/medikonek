@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { updatePatient } from "@/app/actions/patients";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
+import { calendarDateFromDb } from "@/lib/datetime";
 import { toDateInputValue } from "@/lib/datetime";
 import { fullName } from "@/lib/domain";
 import { PatientForm } from "@/components/forms/patient-form";
@@ -14,20 +15,23 @@ export default async function EditPatientPage({ params }: PageProps<"/patients/[
   const doctor = await requireDoctor();
   const { id } = await params;
 
-  const patient = await prisma.patient.findFirst({
-    where: { id, household: { doctorId: doctor.id } },
-    include: {
-      allergies: { orderBy: { createdAt: "asc" } },
-      conditions: { orderBy: { createdAt: "asc" } },
-    },
-  });
+  const patient = await orm.Patient
+    .include("allergies", (a) =>
+      a.select("id", "label", "reaction", "severity", "notes").orderBy((x) => x.createdAt.asc()),
+    )
+    .include("conditions", (c) =>
+      c.select("id", "label", "notes").orderBy((x) => x.createdAt.asc()),
+    )
+    .where((p) => p.id.eq(id))
+    .where((p) => p.household.some((h) => h.doctorId.eq(doctor.id)))
+    .first();
   if (!patient) notFound();
 
-  const households = await prisma.household.findMany({
-    where: { doctorId: doctor.id },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
+  const households = await orm.Household
+    .select("id", "name")
+    .where((h) => h.doctorId.eq(doctor.id))
+    .orderBy((h) => h.name.asc())
+    .all();
 
   const action = updatePatient.bind(null, patient.id);
 
@@ -43,7 +47,7 @@ export default async function EditPatientPage({ params }: PageProps<"/patients/[
             firstName: patient.firstName,
             middleName: patient.middleName ?? "",
             lastName: patient.lastName,
-            dateOfBirth: toDateInputValue(patient.dateOfBirth),
+            dateOfBirth: toDateInputValue(calendarDateFromDb(patient.dateOfBirth)),
             sex: patient.sex,
             relationship: patient.relationship,
             bloodType: patient.bloodType,

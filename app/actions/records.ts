@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { AppointmentStatus } from "@/app/generated/prisma/enums";
+import { AppointmentStatus } from "@/lib/enums";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db, orm } from "@/src/prisma/db";
+import { calendarDateToDb, instantToDb } from "@/lib/datetime";
+import { newId } from "@/lib/ids";
 import { fromDateInputValue, fromDateTimeLocalValue } from "@/lib/datetime";
 import {
   medicalRecordSchema,
@@ -53,6 +55,21 @@ function readPrescriptions(formData: FormData): { rows: PrescriptionInput[]; err
   return { rows };
 }
 
+/**
+ * Replaces a record's prescription rows. Prisma 8 has no nested or bulk create,
+ * so they go in one at a time inside the caller's transaction.
+ */
+async function writePrescriptions(
+  t: typeof orm,
+  medicalRecordId: string,
+  rows: PrescriptionInput[],
+) {
+  const now = instantToDb(new Date());
+  for (const r of rows) {
+    await t.Prescription.create({ ...r, id: newId(), medicalRecordId, createdAt: now });
+  }
+}
+
 export async function createMedicalRecord(_prev: FormState, formData: FormData): Promise<FormState> {
   const doctor = await requireDoctor();
   const parsed = medicalRecordSchema.safeParse(Object.fromEntries(formData));
@@ -60,10 +77,11 @@ export async function createMedicalRecord(_prev: FormState, formData: FormData):
 
   const { patientId, appointmentId, visitDate, followUpDate, ...rest } = parsed.data;
 
-  const patient = await prisma.patient.findFirst({
-    where: { id: patientId, household: { doctorId: doctor.id } },
-    select: { id: true },
-  });
+  const patient = await orm.Patient
+    .select("id")
+    .where((p) => p.id.eq(patientId))
+    .where((p) => p.household.some((h) => h.doctorId.eq(doctor.id)))
+    .first();
   if (!patient) return { message: "That patient is not on your list." };
 
   const visitedAt = fromDateTimeLocalValue(visitDate);
@@ -73,10 +91,13 @@ export async function createMedicalRecord(_prev: FormState, formData: FormData):
   // already documented.
   let linkedAppointmentId: string | null = null;
   if (appointmentId) {
-    const appointment = await prisma.appointment.findFirst({
-      where: { id: appointmentId, doctorId: doctor.id, patientId, medicalRecord: { is: null } },
-      select: { id: true },
-    });
+    const appointment = await orm.Appointment
+      .select("id")
+      .where((a) => a.id.eq(appointmentId))
+      .where((a) => a.doctorId.eq(doctor.id))
+      .where((a) => a.patientId.eq(patientId))
+      .where((a) => a.medicalRecord.none((r) => r.id.isNotNull()))
+      .first();
     if (!appointment) {
       return { message: "That appointment is unavailable or already has a record." };
     }
@@ -86,26 +107,28 @@ export async function createMedicalRecord(_prev: FormState, formData: FormData):
   const { rows, error } = readPrescriptions(formData);
   if (error) return error;
 
-  const record = await prisma.$transaction(async (tx) => {
-    const created = await tx.medicalRecord.create({
-      data: {
-        ...rest,
-        patientId,
-        doctorId: doctor.id,
-        appointmentId: linkedAppointmentId,
-        visitDate: visitedAt,
-        followUpDate: followUpDate ? fromDateInputValue(followUpDate) : null,
-        prescriptions: { create: rows },
-      },
-      select: { id: true },
+  const record = await db.transaction(async (tx) => {
+    const t = tx.orm.public;
+    const now = instantToDb(new Date());
+    const followUp = followUpDate ? fromDateInputValue(followUpDate) : null;
+    const created = await t.MedicalRecord.select("id").create({
+      ...rest,
+      id: newId(),
+      patientId,
+      doctorId: doctor.id,
+      appointmentId: linkedAppointmentId,
+      visitDate: instantToDb(visitedAt),
+      followUpDate: followUp ? calendarDateToDb(followUp) : null,
+      createdAt: now,
+      updatedAt: now,
     });
+    await writePrescriptions(t, created.id, rows);
 
     // Documenting a visit is what marks it done.
     if (linkedAppointmentId) {
-      await tx.appointment.update({
-        where: { id: linkedAppointmentId },
-        data: { status: AppointmentStatus.COMPLETED },
-      });
+      await t.Appointment
+        .where((a) => a.id.eq(linkedAppointmentId))
+        .update({ status: AppointmentStatus.COMPLETED, updatedAt: now });
     }
 
     return created;
@@ -126,10 +149,11 @@ export async function updateMedicalRecord(
   const parsed = medicalRecordSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return toFieldErrors(parsed.error);
 
-  const existing = await prisma.medicalRecord.findFirst({
-    where: { id: recordId, doctorId: doctor.id },
-    select: { id: true, patientId: true },
-  });
+  const existing = await orm.MedicalRecord
+    .select("id", "patientId")
+    .where((r) => r.id.eq(recordId))
+    .where((r) => r.doctorId.eq(doctor.id))
+    .first();
   if (!existing) return { message: "That record no longer exists." };
 
   const { patientId: _patientId, appointmentId: _appointmentId, visitDate, followUpDate, ...rest } = parsed.data;
@@ -140,22 +164,18 @@ export async function updateMedicalRecord(
   const { rows, error } = readPrescriptions(formData);
   if (error) return error;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.medicalRecord.update({
-      where: { id: recordId },
-      data: {
-        ...rest,
-        visitDate: visitedAt,
-        followUpDate: followUpDate ? fromDateInputValue(followUpDate) : null,
-      },
+  await db.transaction(async (tx) => {
+    const t = tx.orm.public;
+    const followUp = followUpDate ? fromDateInputValue(followUpDate) : null;
+    await t.MedicalRecord.where((r) => r.id.eq(recordId)).update({
+      ...rest,
+      visitDate: instantToDb(visitedAt),
+      followUpDate: followUp ? calendarDateToDb(followUp) : null,
+      updatedAt: instantToDb(new Date()),
     });
     // The prescription list is edited as a whole, so replace it wholesale.
-    await tx.prescription.deleteMany({ where: { medicalRecordId: recordId } });
-    if (rows.length > 0) {
-      await tx.prescription.createMany({
-        data: rows.map((r) => ({ ...r, medicalRecordId: recordId })),
-      });
-    }
+    await t.Prescription.where((p) => p.medicalRecordId.eq(recordId)).delete();
+    await writePrescriptions(t, recordId, rows);
   });
 
   revalidatePath(`/patients/${existing.patientId}`);
@@ -168,13 +188,14 @@ export async function deleteMedicalRecord(formData: FormData) {
   const recordId = String(formData.get("recordId") ?? "");
   if (!recordId) return;
 
-  const record = await prisma.medicalRecord.findFirst({
-    where: { id: recordId, doctorId: doctor.id },
-    select: { patientId: true },
-  });
+  const record = await orm.MedicalRecord
+    .select("patientId")
+    .where((r) => r.id.eq(recordId))
+    .where((r) => r.doctorId.eq(doctor.id))
+    .first();
   if (!record) return;
 
-  await prisma.medicalRecord.delete({ where: { id: recordId } });
+  await orm.MedicalRecord.where((r) => r.id.eq(recordId)).delete();
 
   revalidatePath(`/patients/${record.patientId}`);
   redirect(`/patients/${record.patientId}`);

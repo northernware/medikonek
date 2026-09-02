@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
+import { or } from "@prisma/orm-postgres/orm-client";
 import { buttonClass, Card, EmptyState, PageHeader } from "@/components/ui";
 import { SearchForm } from "@/components/search-form";
 
@@ -12,28 +13,24 @@ export default async function HouseholdsPage({ searchParams }: PageProps<"/house
   const { q } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
 
-  const households = await prisma.household.findMany({
-    where: {
-      doctorId: doctor.id,
-      ...(query
-        ? {
-            OR: [
-              { name: { contains: query, mode: "insensitive" as const } },
-              { patients: { some: { lastName: { contains: query, mode: "insensitive" as const } } } },
-              { patients: { some: { firstName: { contains: query, mode: "insensitive" as const } } } },
-            ],
-          }
-        : {}),
-    },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      address: true,
-      contactNumber: true,
-      _count: { select: { patients: true } },
-    },
-  });
+  let householdQuery = orm.Household
+    .select("id", "name", "address", "contactNumber")
+    .include("patients", (p) => p.count())
+    .where((h) => h.doctorId.eq(doctor.id))
+    .orderBy((h) => h.name.asc());
+
+  if (query) {
+    const like = `%${query}%`;
+    householdQuery = householdQuery.where((h) =>
+      or(
+        h.name.ilike(like),
+        h.patients.some((p) => p.lastName.ilike(like)),
+        h.patients.some((p) => p.firstName.ilike(like)),
+      ),
+    );
+  }
+
+  const households = await householdQuery.all();
 
   return (
     <div className="space-y-6">
@@ -82,8 +79,8 @@ export default async function HouseholdsPage({ searchParams }: PageProps<"/house
                     </span>
                   </span>
                   <span className="tabular shrink-0 text-sm text-ink-muted">
-                    {household._count.patients}{" "}
-                    {household._count.patients === 1 ? "member" : "members"}
+                    {household.patients}{" "}
+                    {household.patients === 1 ? "member" : "members"}
                   </span>
                 </Link>
               </li>

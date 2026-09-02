@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { AppointmentStatus } from "@/app/generated/prisma/enums";
+import type { AppointmentStatus } from "@/lib/enums";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
 import {
   clinicMonthRange,
   dayKey,
@@ -14,6 +14,8 @@ import {
   parseMonthKey,
   shiftMonth,
   WEEKDAY_LABELS,
+  instantFromDb,
+  instantToDb,
 } from "@/lib/datetime";
 import {
   APPOINTMENT_STATUS_LABELS,
@@ -43,27 +45,21 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const { year, month: monthNumber } = parseMonthKey(month, now);
   const range = clinicMonthRange(year, monthNumber);
 
-  const appointments = await prisma.appointment.findMany({
-    where: { doctorId: doctor.id, scheduledAt: { gte: range.start, lt: range.end } },
-    orderBy: { scheduledAt: "asc" },
-    select: {
-      id: true,
-      scheduledAt: true,
-      durationMinutes: true,
-      service: true,
-      reason: true,
-      status: true,
-      patient: {
-        select: {
-          id: true,
-          firstName: true,
-          middleName: true,
-          lastName: true,
-          household: { select: { name: true } },
-        },
-      },
-    },
-  });
+  const rows = await orm.Appointment
+    .select("id", "scheduledAt", "durationMinutes", "service", "reason", "status")
+    .include("patient", (p) =>
+      p
+        .select("id", "firstName", "middleName", "lastName")
+        .include("household", (h) => h.select("name")),
+    )
+    .where((a) => a.doctorId.eq(doctor.id))
+    .where((a) => a.scheduledAt.gte(instantToDb(range.start)))
+    .where((a) => a.scheduledAt.lt(instantToDb(range.end)))
+    .orderBy((a) => a.scheduledAt.asc())
+    .all();
+
+  // The grid works in `Date`; the column reads as text, so convert once here.
+  const appointments = rows.map((a) => ({ ...a, scheduledAt: instantFromDb(a.scheduledAt) }));
 
   // One pass into day buckets — the grid then reads each cell in O(1).
   const byDay = new Map<string, typeof appointments>();

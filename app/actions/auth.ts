@@ -2,7 +2,9 @@
 
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
+import { instantToDb } from "@/lib/datetime";
+import { newId } from "@/lib/ids";
 import { createSession, destroySession } from "@/lib/session";
 import { loginSchema, registerSchema, toFieldErrors, type FormState } from "@/lib/validation";
 
@@ -16,7 +18,7 @@ export async function registerDoctor(_prev: FormState, formData: FormData): Prom
 
   const { email, password, confirmPassword: _ignored, ...profile } = parsed.data;
 
-  const taken = await prisma.doctor.findUnique({ where: { email }, select: { id: true } });
+  const taken = await orm.Doctor.select("id").where((d) => d.email.eq(email)).first();
   if (taken) {
     return {
       message: "That email already has an account.",
@@ -24,9 +26,14 @@ export async function registerDoctor(_prev: FormState, formData: FormData): Prom
     };
   }
 
-  const doctor = await prisma.doctor.create({
-    data: { ...profile, email, passwordHash: await bcrypt.hash(password, 12) },
-    select: { id: true },
+  const now = instantToDb(new Date());
+  const doctor = await orm.Doctor.select("id").create({
+    ...profile,
+    id: newId(),
+    email,
+    passwordHash: await bcrypt.hash(password, 12),
+    createdAt: now,
+    updatedAt: now,
   });
 
   await createSession(doctor.id);
@@ -37,10 +44,10 @@ export async function loginDoctor(_prev: FormState, formData: FormData): Promise
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return toFieldErrors(parsed.error);
 
-  const doctor = await prisma.doctor.findUnique({
-    where: { email: parsed.data.email },
-    select: { id: true, passwordHash: true },
-  });
+  const doctor = await orm.Doctor
+    .select("id", "passwordHash")
+    .where((d) => d.email.eq(parsed.data.email))
+    .first();
 
   const matches = await bcrypt.compare(parsed.data.password, doctor?.passwordHash ?? DECOY_HASH);
   if (!doctor || !matches) {

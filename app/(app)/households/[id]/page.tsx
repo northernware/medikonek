@@ -3,43 +3,46 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteHousehold } from "@/app/actions/households";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { formatCalendarDate } from "@/lib/datetime";
+import { orm } from "@/src/prisma/db";
+import { appointmentListQuery, toAppointmentListItem } from "@/lib/queries";
+import { instantToDb } from "@/lib/datetime";
+import { calendarDateFromDb, formatCalendarDate } from "@/lib/datetime";
 import { ageFrom, fullName, RELATIONSHIP_LABELS, SEX_LABELS } from "@/lib/domain";
-import { AppointmentList, APPOINTMENT_LIST_INCLUDE } from "@/components/appointment-list";
+import { AppointmentList } from "@/components/appointment-list";
 import { DangerZone } from "@/components/danger-zone";
 import { Badge, buttonClass, Card, CardHeader, Detail, EmptyState, PageHeader, Prose } from "@/components/ui";
 
 async function loadHousehold(doctorId: string, householdId: string) {
-  return prisma.household.findFirst({
-    where: { id: householdId, doctorId },
-    include: {
-      patients: {
-        orderBy: [{ dateOfBirth: "asc" }],
-        select: {
-          id: true,
-          firstName: true,
-          middleName: true,
-          lastName: true,
-          dateOfBirth: true,
-          sex: true,
-          relationship: true,
-          allergyStatus: true,
-          allergies: { select: { id: true, severity: true } },
-          _count: { select: { medicalRecords: true } },
-        },
-      },
-    },
-  });
+  return orm.Household
+    .include("patients", (p) =>
+      p
+        .select(
+          "id",
+          "firstName",
+          "middleName",
+          "lastName",
+          "dateOfBirth",
+          "sex",
+          "relationship",
+          "allergyStatus",
+        )
+        .include("allergies", (a) => a.select("id", "severity"))
+        .include("medicalRecords", (r) => r.count())
+        .orderBy((x) => x.dateOfBirth.asc()),
+    )
+    .where((h) => h.id.eq(householdId))
+    .where((h) => h.doctorId.eq(doctorId))
+    .first();
 }
 
 export async function generateMetadata({ params }: PageProps<"/households/[id]">): Promise<Metadata> {
   const doctor = await requireDoctor();
   const { id } = await params;
-  const household = await prisma.household.findFirst({
-    where: { id, doctorId: doctor.id },
-    select: { name: true },
-  });
+  const household = await orm.Household
+    .select("name")
+    .where((h) => h.id.eq(id))
+    .where((h) => h.doctorId.eq(doctor.id))
+    .first();
   return { title: household ? `${household.name} household` : "Household" };
 }
 
@@ -50,12 +53,15 @@ export default async function HouseholdPage({ params }: PageProps<"/households/[
   const household = await loadHousehold(doctor.id, id);
   if (!household) notFound();
 
-  const upcoming = await prisma.appointment.findMany({
-    where: { doctorId: doctor.id, patient: { householdId: household.id }, scheduledAt: { gte: new Date() } },
-    include: APPOINTMENT_LIST_INCLUDE,
-    orderBy: { scheduledAt: "asc" },
-    take: 10,
-  });
+  const upcoming = (
+    await appointmentListQuery()
+      .where((a) => a.doctorId.eq(doctor.id))
+      .where((a) => a.patient.some((p) => p.householdId.eq(household.id)))
+      .where((a) => a.scheduledAt.gte(instantToDb(new Date())))
+      .orderBy((a) => a.scheduledAt.asc())
+      .limit(10)
+      .all()
+  ).map(toAppointmentListItem);
 
   return (
     <div className="space-y-6">
@@ -126,12 +132,13 @@ export default async function HouseholdPage({ params }: PageProps<"/households/[
                     </span>
                     <span className="mt-0.5 block truncate text-sm text-ink-muted">
                       {RELATIONSHIP_LABELS[patient.relationship]} · {SEX_LABELS[patient.sex]} ·{" "}
-                      {ageFrom(patient.dateOfBirth)} · born {formatCalendarDate(patient.dateOfBirth)}
+                      {ageFrom(calendarDateFromDb(patient.dateOfBirth))} · born{" "}
+                      {formatCalendarDate(calendarDateFromDb(patient.dateOfBirth))}
                     </span>
                   </span>
                   <span className="tabular shrink-0 text-sm text-ink-muted">
-                    {patient._count.medicalRecords}{" "}
-                    {patient._count.medicalRecords === 1 ? "visit" : "visits"}
+                    {patient.medicalRecords}{" "}
+                    {patient.medicalRecords === 1 ? "visit" : "visits"}
                   </span>
                 </Link>
               </li>

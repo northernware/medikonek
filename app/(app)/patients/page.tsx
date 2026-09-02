@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireDoctor } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { orm } from "@/src/prisma/db";
+import { calendarDateFromDb } from "@/lib/datetime";
+import { or } from "@prisma/orm-postgres/orm-client";
 import { ageFrom, fullName, RELATIONSHIP_LABELS, SEX_LABELS } from "@/lib/domain";
 import { Badge, buttonClass, Card, EmptyState, PageHeader } from "@/components/ui";
 import { SearchForm } from "@/components/search-form";
@@ -12,31 +14,39 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
   const doctor = await requireDoctor();
   const { q } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
-  const like = { contains: query, mode: "insensitive" as const };
 
-  const patients = await prisma.patient.findMany({
-    where: {
-      household: { doctorId: doctor.id },
-      ...(query
-        ? { OR: [{ firstName: like }, { lastName: like }, { household: { name: like } }] }
-        : {}),
-    },
-    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-    select: {
-      id: true,
-      firstName: true,
-      middleName: true,
-      lastName: true,
-      dateOfBirth: true,
-      sex: true,
-      relationship: true,
-      allergyStatus: true,
-      allergies: { select: { id: true, severity: true } },
-      household: { select: { id: true, name: true } },
-    },
-  });
+  let patientQuery = orm.Patient
+    .select(
+      "id",
+      "firstName",
+      "middleName",
+      "lastName",
+      "dateOfBirth",
+      "sex",
+      "relationship",
+      "allergyStatus",
+    )
+    .include("allergies", (a) => a.select("id", "severity"))
+    .include("household", (h) => h.select("id", "name"))
+    .where((p) => p.household.some((h) => h.doctorId.eq(doctor.id)))
+    .orderBy([(p) => p.lastName.asc(), (p) => p.firstName.asc()]);
 
-  const householdCount = await prisma.household.count({ where: { doctorId: doctor.id } });
+  if (query) {
+    const like = `%${query}%`;
+    patientQuery = patientQuery.where((p) =>
+      or(
+        p.firstName.ilike(like),
+        p.lastName.ilike(like),
+        p.household.some((h) => h.name.ilike(like)),
+      ),
+    );
+  }
+
+  const patients = await patientQuery.all();
+
+  const { householdCount } = await orm.Household
+    .where((h) => h.doctorId.eq(doctor.id))
+    .aggregate((a) => ({ householdCount: a.count() }));
 
   return (
     <div className="space-y-6">
@@ -100,7 +110,7 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
                     </span>
                   </span>
                   <span className="tabular shrink-0 text-sm text-ink-muted">
-                    {SEX_LABELS[patient.sex]} · {ageFrom(patient.dateOfBirth)}
+                    {SEX_LABELS[patient.sex]} · {ageFrom(calendarDateFromDb(patient.dateOfBirth))}
                   </span>
                 </Link>
               </li>
