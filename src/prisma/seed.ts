@@ -36,10 +36,19 @@ function born(year: number, month: number, day: number) {
   return calendarDateToDb(new Date(Date.UTC(year, month - 1, day)));
 }
 
-type ClinicalSeed = { label: string; reaction?: string; severity?: AllergySeverity; notes?: string };
+type ClinicalSeed = {
+  label: string;
+  reaction?: string;
+  severity?: AllergySeverity;
+  dosage?: string;
+  frequency?: string;
+  notes?: string;
+};
 type PatientSeed = Record<string, unknown> & {
   allergies?: ClinicalSeed[];
   conditions?: ClinicalSeed[];
+  medications?: ClinicalSeed[];
+  alerts?: ClinicalSeed[];
 };
 
 /**
@@ -61,7 +70,7 @@ async function seedHousehold(
 
   const rows: { id: string; firstName: string }[] = [];
   for (const patient of patients) {
-    const { allergies = [], conditions = [], ...scalars } = patient;
+    const { allergies = [], conditions = [], medications = [], alerts = [], ...scalars } = patient;
     const row = await orm.Patient.create({
       ...scalars,
       id: newId(),
@@ -83,6 +92,26 @@ async function seedHousehold(
         patientId: row.id,
         label: c.label,
         notes: c.notes ?? null,
+        createdAt: now,
+      });
+    }
+    for (const m of medications) {
+      await orm.PatientMedication.create({
+        id: newId(),
+        patientId: row.id,
+        label: m.label,
+        dosage: m.dosage ?? null,
+        frequency: m.frequency ?? null,
+        notes: m.notes ?? null,
+        createdAt: now,
+      });
+    }
+    for (const a of alerts) {
+      await orm.PatientAlert.create({
+        id: newId(),
+        patientId: row.id,
+        label: a.label,
+        notes: a.notes ?? null,
         createdAt: now,
       });
     }
@@ -161,6 +190,11 @@ async function main() {
             bloodType: BloodType.O_POS,
             contactNumber: "0917 442 1180",
             allergyStatus: ClinicalListStatus.NONE_KNOWN,
+            medicationStatus: ClinicalListStatus.RECORDED,
+            medications: [{ label: "Amlodipine", dosage: "10 mg", frequency: "Once daily" }],
+            emergencyContactName: "Marilou Dela Cruz",
+            emergencyContactRelationship: "Spouse",
+            emergencyContactNumber: "0917 442 1180",
             conditionStatus: ClinicalListStatus.RECORDED,
             conditions: [{ label: "Hypertension", notes: "Diagnosed 2021. On amlodipine 5 mg." }],
           },
@@ -220,8 +254,20 @@ async function main() {
                 { label: "Shellfish", reaction: "Lip swelling", severity: AllergySeverity.MILD },
               ],
             conditionStatus: ClinicalListStatus.RECORDED,
+            medicationStatus: ClinicalListStatus.RECORDED,
+            medications: [
+              { label: "Metformin", dosage: "500 mg", frequency: "Twice daily", notes: "With meals." },
+              { label: "Paracetamol", dosage: "500 mg", frequency: "As needed" },
+            ],
+            alerts: [
+              { label: "Falls risk", notes: "Unsteady on stairs; came with a cane." },
+              { label: "On anticoagulants", notes: "Warfarin — check INR before any procedure." },
+            ],
+            emergencyContactName: "Ramon Dela Cruz",
+            emergencyContactRelationship: "Son",
+            emergencyContactNumber: "0917 442 1180",
             conditions: [
-                { label: "Diabetes", notes: "Type 2, on metformin." },
+                { label: "Diabetes", notes: "Type 2." },
                 { label: "Arthritis", notes: "Osteoarthritis of both knees." },
               ],
           },
@@ -272,6 +318,16 @@ async function main() {
   const sofia = byName(delaCruz, "Sofia");
   const elena = byName(villanueva, "Elena");
   const miguel = byName(villanueva, "Miguel");
+
+  // Primary contacts, now that the members they name exist.
+  for (const [householdId, contactId] of [
+    [delaCruz.id, marilou],
+    [villanueva.id, elena],
+  ] as const) {
+    await orm.Household
+      .where((h) => h.id.eq(householdId))
+      .update({ primaryContactId: contactId, updatedAt: instantToDb(new Date()) });
+  }
 
   // Today's clinic.
   await seedAppointments([

@@ -10,6 +10,7 @@ export type HouseholdDefaults = {
   name: string;
   address: string;
   contactNumber: string;
+  primaryContactId: string;
   notes: string;
 };
 
@@ -17,6 +18,7 @@ export const BLANK_HOUSEHOLD: HouseholdDefaults = {
   name: "",
   address: "",
   contactNumber: "",
+  primaryContactId: "",
   notes: "",
 };
 
@@ -33,8 +35,14 @@ export type PatientDefaults = {
   allergies: ClinicalItem[];
   conditionStatus: string;
   conditions: ClinicalItem[];
+  medicationStatus: string;
+  medications: ClinicalItem[];
+  alerts: ClinicalItem[];
   contactNumber: string;
   email: string;
+  emergencyContactName: string;
+  emergencyContactRelationship: string;
+  emergencyContactNumber: string;
 };
 
 export function blankPatient(householdId: string): PatientDefaults {
@@ -51,8 +59,14 @@ export function blankPatient(householdId: string): PatientDefaults {
     allergies: [],
     conditionStatus: "UNKNOWN",
     conditions: [],
+    medicationStatus: "UNKNOWN",
+    medications: [],
+    alerts: [],
     contactNumber: "",
     email: "",
+    emergencyContactName: "",
+    emergencyContactRelationship: "",
+    emergencyContactNumber: "",
   };
 }
 

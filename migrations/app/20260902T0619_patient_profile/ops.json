@@ -1,0 +1,611 @@
+[
+  {
+    "id": "table.PatientAlert",
+    "label": "Create table \"PatientAlert\"",
+    "summary": "Creates table \"PatientAlert\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "PatientAlert"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"PatientAlert\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientAlert\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"PatientAlert\"",
+        "sql": "CREATE TABLE \"public\".\"PatientAlert\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"label\" text NOT NULL,\n  \"notes\" text,\n  \"patientId\" text NOT NULL,\n  CONSTRAINT \"PatientAlert_pkey\" PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"PatientAlert\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientAlert\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.PatientMedication",
+    "label": "Create table \"PatientMedication\"",
+    "summary": "Creates table \"PatientMedication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "PatientMedication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"PatientMedication\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientMedication\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"PatientMedication\"",
+        "sql": "CREATE TABLE \"public\".\"PatientMedication\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"dosage\" text,\n  \"frequency\" text,\n  \"id\" text NOT NULL,\n  \"label\" text NOT NULL,\n  \"notes\" text,\n  \"patientId\" text NOT NULL,\n  CONSTRAINT \"PatientMedication_pkey\" PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"PatientMedication\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientMedication\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Household.primaryContactId",
+    "label": "Add column \"primaryContactId\" to \"Household\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "primaryContactId",
+        "table": "Household"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"primaryContactId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Household",
+          "primaryContactId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"primaryContactId\"",
+        "sql": "ALTER TABLE \"public\".\"Household\" ADD COLUMN \"primaryContactId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"primaryContactId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Household",
+          "primaryContactId"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Patient.emergencyContactName",
+    "label": "Add column \"emergencyContactName\" to \"Patient\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "emergencyContactName",
+        "table": "Patient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"emergencyContactName\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Patient",
+          "emergencyContactName"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"emergencyContactName\"",
+        "sql": "ALTER TABLE \"public\".\"Patient\" ADD COLUMN \"emergencyContactName\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"emergencyContactName\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Patient",
+          "emergencyContactName"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Patient.emergencyContactNumber",
+    "label": "Add column \"emergencyContactNumber\" to \"Patient\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "emergencyContactNumber",
+        "table": "Patient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"emergencyContactNumber\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Patient",
+          "emergencyContactNumber"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"emergencyContactNumber\"",
+        "sql": "ALTER TABLE \"public\".\"Patient\" ADD COLUMN \"emergencyContactNumber\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"emergencyContactNumber\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Patient",
+          "emergencyContactNumber"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Patient.emergencyContactRelationship",
+    "label": "Add column \"emergencyContactRelationship\" to \"Patient\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "emergencyContactRelationship",
+        "table": "Patient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"emergencyContactRelationship\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Patient",
+          "emergencyContactRelationship"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"emergencyContactRelationship\"",
+        "sql": "ALTER TABLE \"public\".\"Patient\" ADD COLUMN \"emergencyContactRelationship\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"emergencyContactRelationship\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Patient",
+          "emergencyContactRelationship"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Patient.medicationStatus",
+    "label": "Add column \"medicationStatus\" to \"Patient\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "medicationStatus",
+        "table": "Patient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"medicationStatus\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Patient",
+          "medicationStatus"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"medicationStatus\"",
+        "sql": "ALTER TABLE \"public\".\"Patient\" ADD COLUMN \"medicationStatus\" \"ClinicalListStatus\" DEFAULT 'UNKNOWN'::\"ClinicalListStatus\" NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"medicationStatus\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Patient",
+          "medicationStatus"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Household.Household_primaryContactId_key",
+    "label": "Create index \"Household_primaryContactId_key\" on \"Household\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Household_primaryContactId_key",
+        "table": "Household"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Household_primaryContactId_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Household_primaryContactId_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Household_primaryContactId_key\"",
+        "sql": "CREATE UNIQUE INDEX \"Household_primaryContactId_key\" ON \"public\".\"Household\" (\"primaryContactId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Household_primaryContactId_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Household_primaryContactId_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.PatientAlert.PatientAlert_patientId_idx",
+    "label": "Create index \"PatientAlert_patientId_idx\" on \"PatientAlert\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "PatientAlert_patientId_idx",
+        "table": "PatientAlert"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"PatientAlert_patientId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientAlert_patientId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"PatientAlert_patientId_idx\"",
+        "sql": "CREATE INDEX \"PatientAlert_patientId_idx\" ON \"public\".\"PatientAlert\" (\"patientId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"PatientAlert_patientId_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientAlert_patientId_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.PatientAlert.PatientAlert_patientId_label_key",
+    "label": "Create index \"PatientAlert_patientId_label_key\" on \"PatientAlert\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "PatientAlert_patientId_label_key",
+        "table": "PatientAlert"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"PatientAlert_patientId_label_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientAlert_patientId_label_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"PatientAlert_patientId_label_key\"",
+        "sql": "CREATE UNIQUE INDEX \"PatientAlert_patientId_label_key\" ON \"public\".\"PatientAlert\" (\"patientId\", \"label\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"PatientAlert_patientId_label_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientAlert_patientId_label_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.PatientMedication.PatientMedication_patientId_idx",
+    "label": "Create index \"PatientMedication_patientId_idx\" on \"PatientMedication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "PatientMedication_patientId_idx",
+        "table": "PatientMedication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"PatientMedication_patientId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientMedication_patientId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"PatientMedication_patientId_idx\"",
+        "sql": "CREATE INDEX \"PatientMedication_patientId_idx\" ON \"public\".\"PatientMedication\" (\"patientId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"PatientMedication_patientId_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientMedication_patientId_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.PatientMedication.PatientMedication_patientId_label_key",
+    "label": "Create index \"PatientMedication_patientId_label_key\" on \"PatientMedication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "PatientMedication_patientId_label_key",
+        "table": "PatientMedication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"PatientMedication_patientId_label_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientMedication_patientId_label_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"PatientMedication_patientId_label_key\"",
+        "sql": "CREATE UNIQUE INDEX \"PatientMedication_patientId_label_key\" ON \"public\".\"PatientMedication\" (\"patientId\", \"label\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"PatientMedication_patientId_label_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientMedication_patientId_label_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Household.Household_primaryContactId_fkey",
+    "label": "Add foreign key \"Household_primaryContactId_fkey\" on \"Household\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Household_primaryContactId_fkey",
+        "table": "Household"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Household_primaryContactId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Household_primaryContactId_fkey",
+          "public",
+          "\"public\".\"Household\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Household_primaryContactId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Household\"\nADD CONSTRAINT \"Household_primaryContactId_fkey\"\nFOREIGN KEY (\"primaryContactId\")\nREFERENCES \"public\".\"Patient\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Household_primaryContactId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Household_primaryContactId_fkey",
+          "public",
+          "\"public\".\"Household\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.PatientAlert.PatientAlert_patientId_fkey",
+    "label": "Add foreign key \"PatientAlert_patientId_fkey\" on \"PatientAlert\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "PatientAlert_patientId_fkey",
+        "table": "PatientAlert"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"PatientAlert_patientId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PatientAlert_patientId_fkey",
+          "public",
+          "\"public\".\"PatientAlert\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"PatientAlert_patientId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"PatientAlert\"\nADD CONSTRAINT \"PatientAlert_patientId_fkey\"\nFOREIGN KEY (\"patientId\")\nREFERENCES \"public\".\"Patient\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"PatientAlert_patientId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PatientAlert_patientId_fkey",
+          "public",
+          "\"public\".\"PatientAlert\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.PatientMedication.PatientMedication_patientId_fkey",
+    "label": "Add foreign key \"PatientMedication_patientId_fkey\" on \"PatientMedication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "PatientMedication_patientId_fkey",
+        "table": "PatientMedication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"PatientMedication_patientId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PatientMedication_patientId_fkey",
+          "public",
+          "\"public\".\"PatientMedication\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"PatientMedication_patientId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"PatientMedication\"\nADD CONSTRAINT \"PatientMedication_patientId_fkey\"\nFOREIGN KEY (\"patientId\")\nREFERENCES \"public\".\"Patient\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"PatientMedication_patientId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PatientMedication_patientId_fkey",
+          "public",
+          "\"public\".\"PatientMedication\""
+        ]
+      }
+    ]
+  }
+]

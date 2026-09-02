@@ -39,6 +39,41 @@ export const CONDITION_GROUPS: SuggestionGroup[] = [
   },
 ];
 
+/** Common maintenance medicines. As ever, anything can be typed instead. */
+export const MEDICATION_GROUPS: SuggestionGroup[] = [
+  {
+    group: "Cardiovascular",
+    items: ["Amlodipine", "Losartan", "Metoprolol", "Atorvastatin", "Aspirin (low dose)", "Furosemide"],
+  },
+  { group: "Endocrine", items: ["Metformin", "Insulin", "Levothyroxine", "Gliclazide"] },
+  { group: "Respiratory", items: ["Salbutamol inhaler", "Budesonide inhaler", "Montelukast"] },
+  { group: "Pain and inflammation", items: ["Paracetamol", "Ibuprofen", "Mefenamic acid", "Celecoxib"] },
+  { group: "Other", items: ["Omeprazole", "Cetirizine", "Ferrous sulfate", "Folic acid", "Warfarin"] },
+];
+
+/**
+ * Standing warnings that belong at the top of a chart — things to know before
+ * touching the patient, rather than history.
+ */
+export const ALERT_GROUPS: SuggestionGroup[] = [
+  {
+    group: "Bleeding and clotting",
+    items: ["On anticoagulants", "Bleeding disorder"],
+  },
+  {
+    group: "Airway and anaesthesia",
+    items: ["Difficult airway", "Previous anaesthetic reaction"],
+  },
+  {
+    group: "Devices and implants",
+    items: ["Pacemaker", "Implanted defibrillator", "Joint prosthesis"],
+  },
+  {
+    group: "Precautions",
+    items: ["Latex precautions", "Immunocompromised", "Pregnant", "Falls risk", "MRSA colonised"],
+  },
+];
+
 export const CLINICAL_STATUS_LABELS: Record<ClinicalListStatus, string> = {
   RECORDED: "Recorded",
   NONE_KNOWN: "None known",

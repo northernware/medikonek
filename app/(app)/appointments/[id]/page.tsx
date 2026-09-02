@@ -20,7 +20,7 @@ import {
   VISIT_PRIORITY_LABELS,
   VISIT_PRIORITY_TONE,
 } from "@/lib/domain";
-import { AllergyBanner } from "@/components/allergy-banner";
+import { AlertBanner, AllergyBanner } from "@/components/allergy-banner";
 import { DangerZone } from "@/components/danger-zone";
 import { Badge, buttonClass, Card, CardHeader, Detail, PageHeader, Prose } from "@/components/ui";
 
@@ -44,6 +44,7 @@ export default async function AppointmentPage({ params }: PageProps<"/appointmen
       p
         .select("id", "firstName", "middleName", "lastName", "dateOfBirth", "allergyStatus")
         .include("allergies", (a) => a.select("id", "label", "reaction", "severity", "notes"))
+        .include("alerts", (x) => x.select("id", "label", "notes").orderBy((y) => y.label.asc()))
         .include("household", (h) => h.select("id", "name")),
     )
     .include("medicalRecord", (r) => r.select("id"))
@@ -86,6 +87,7 @@ export default async function AppointmentPage({ params }: PageProps<"/appointmen
         }
       />
 
+      <AlertBanner alerts={patient.alerts} />
       <AllergyBanner status={patient.allergyStatus} allergies={patient.allergies} />
 
       <Card className="p-5">

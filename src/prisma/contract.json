@@ -24,12 +24,20 @@
       "model": "Patient",
       "namespace": "public"
     },
+    "PatientAlert": {
+      "model": "PatientAlert",
+      "namespace": "public"
+    },
     "PatientAllergy": {
       "model": "PatientAllergy",
       "namespace": "public"
     },
     "PatientCondition": {
       "model": "PatientCondition",
+      "namespace": "public"
+    },
+    "PatientMedication": {
+      "model": "PatientMedication",
       "namespace": "public"
     },
     "Prescription": {
@@ -557,6 +565,13 @@
                   "kind": "scalar"
                 }
               },
+              "primaryContactId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "updatedAt": {
                 "nullable": false,
                 "type": {
@@ -598,6 +613,21 @@
                   "model": "Patient",
                   "namespace": "public"
                 }
+              },
+              "primaryContact": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "primaryContactId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Patient",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -622,6 +652,9 @@
                 },
                 "notes": {
                   "column": "notes"
+                },
+                "primaryContactId": {
+                  "column": "primaryContactId"
                 },
                 "updatedAt": {
                   "column": "updatedAt"
@@ -1020,6 +1053,27 @@
                   "kind": "scalar"
                 }
               },
+              "emergencyContactName": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "emergencyContactNumber": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "emergencyContactRelationship": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "firstName": {
                 "nullable": false,
                 "type": {
@@ -1046,6 +1100,16 @@
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
+                }
+              },
+              "medicationStatus": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "ClinicalListStatus"
+                  }
                 }
               },
               "middleName": {
@@ -1087,6 +1151,21 @@
               }
             },
             "relations": {
+              "alerts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "patientId"
+                  ]
+                },
+                "to": {
+                  "model": "PatientAlert",
+                  "namespace": "public"
+                }
+              },
               "allergies": {
                 "cardinality": "1:N",
                 "on": {
@@ -1161,6 +1240,36 @@
                   "model": "MedicalRecord",
                   "namespace": "public"
                 }
+              },
+              "medications": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "patientId"
+                  ]
+                },
+                "to": {
+                  "model": "PatientMedication",
+                  "namespace": "public"
+                }
+              },
+              "primaryContactFor": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "primaryContactId"
+                  ]
+                },
+                "to": {
+                  "model": "Household",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -1186,6 +1295,15 @@
                 "email": {
                   "column": "email"
                 },
+                "emergencyContactName": {
+                  "column": "emergencyContactName"
+                },
+                "emergencyContactNumber": {
+                  "column": "emergencyContactNumber"
+                },
+                "emergencyContactRelationship": {
+                  "column": "emergencyContactRelationship"
+                },
                 "firstName": {
                   "column": "firstName"
                 },
@@ -1197,6 +1315,9 @@
                 },
                 "lastName": {
                   "column": "lastName"
+                },
+                "medicationStatus": {
+                  "column": "medicationStatus"
                 },
                 "middleName": {
                   "column": "middleName"
@@ -1213,6 +1334,86 @@
               },
               "namespaceId": "public",
               "table": "Patient"
+            }
+          },
+          "PatientAlert": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-string@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "label": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "notes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "patientId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "patient": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "patientId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Patient",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "label": {
+                  "column": "label"
+                },
+                "notes": {
+                  "column": "notes"
+                },
+                "patientId": {
+                  "column": "patientId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "PatientAlert"
             }
           },
           "PatientAllergy": {
@@ -1396,6 +1597,106 @@
               },
               "namespaceId": "public",
               "table": "PatientCondition"
+            }
+          },
+          "PatientMedication": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-string@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "dosage": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "frequency": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "label": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "notes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "patientId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "patient": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "patientId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Patient",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "dosage": {
+                  "column": "dosage"
+                },
+                "frequency": {
+                  "column": "frequency"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "label": {
+                  "column": "label"
+                },
+                "notes": {
+                  "column": "notes"
+                },
+                "patientId": {
+                  "column": "patientId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "PatientMedication"
             }
           },
           "Prescription": {
@@ -2043,6 +2344,11 @@
                   "nativeType": "text",
                   "nullable": true
                 },
+                "primaryContactId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "updatedAt": {
                   "codecId": "pg/timestamp-string@1",
                   "nativeType": "timestamp",
@@ -2053,6 +2359,25 @@
                 }
               },
               "foreignKeys": [
+                {
+                  "name": "Household_primaryContactId_fkey",
+                  "onDelete": "setNull",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "primaryContactId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Household"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Patient"
+                  }
+                },
                 {
                   "name": "Household_doctorId_fkey",
                   "onDelete": "cascade",
@@ -2087,6 +2412,13 @@
                     "name"
                   ],
                   "name": "Household_doctorId_name_key",
+                  "unique": true
+                },
+                {
+                  "columns": [
+                    "primaryContactId"
+                  ],
+                  "name": "Household_primaryContactId_key",
                   "unique": true
                 }
               ],
@@ -2432,6 +2764,21 @@
                   "nativeType": "text",
                   "nullable": true
                 },
+                "emergencyContactName": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "emergencyContactNumber": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "emergencyContactRelationship": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "firstName": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -2451,6 +2798,24 @@
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
+                },
+                "medicationStatus": {
+                  "codecId": "pg/enum@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "UNKNOWN"
+                  },
+                  "nativeType": "ClinicalListStatus",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "ClinicalListStatus"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "ClinicalListStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
                 },
                 "middleName": {
                   "codecId": "pg/text@1",
@@ -2541,6 +2906,87 @@
                   "id"
                 ],
                 "name": "Patient_pkey"
+              },
+              "uniques": []
+            },
+            "PatientAlert": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamp-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "label": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "notes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "patientId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "PatientAlert_patientId_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "patientId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "PatientAlert"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Patient"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "patientId"
+                  ],
+                  "name": "PatientAlert_patientId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "patientId",
+                    "label"
+                  ],
+                  "name": "PatientAlert_patientId_label_key",
+                  "unique": true
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "PatientAlert_pkey"
               },
               "uniques": []
             },
@@ -2722,6 +3168,97 @@
                   "id"
                 ],
                 "name": "PatientCondition_pkey"
+              },
+              "uniques": []
+            },
+            "PatientMedication": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamp-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "dosage": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "frequency": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "label": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "notes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "patientId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "PatientMedication_patientId_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "patientId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "PatientMedication"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Patient"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "patientId"
+                  ],
+                  "name": "PatientMedication_patientId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "patientId",
+                    "label"
+                  ],
+                  "name": "PatientMedication_patientId_label_key",
+                  "unique": true
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "PatientMedication_pkey"
               },
               "uniques": []
             },
@@ -2935,7 +3472,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "3bedda52fae42a9f58e88ab741db14d8f792592825b421df63901d0e1300b14b"
+    "storageHash": "a6c2e9f7ac0a657c8c9685a75b11eaf2bdb7eea2b9ab55e84ae7b70ae444bd64"
   },
   "capabilities": {
     "postgres": {

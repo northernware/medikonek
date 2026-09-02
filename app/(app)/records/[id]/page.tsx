@@ -7,7 +7,7 @@ import { orm } from "@/src/prisma/db";
 import { calendarDateFromDb, instantFromDb } from "@/lib/datetime";
 import { formatCalendarDate, formatDateTime, toDateInputValue } from "@/lib/datetime";
 import { ageFrom, bloodPressure, bmi, fullName, SEX_LABELS } from "@/lib/domain";
-import { AllergyBanner } from "@/components/allergy-banner";
+import { AlertBanner, AllergyBanner } from "@/components/allergy-banner";
 import { DangerZone } from "@/components/danger-zone";
 import { buttonClass, Card, CardHeader, Detail, PageHeader, Prose } from "@/components/ui";
 
@@ -22,6 +22,7 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
       p
         .select("id", "firstName", "middleName", "lastName", "dateOfBirth", "sex", "allergyStatus")
         .include("allergies", (a) => a.select("id", "label", "reaction", "severity", "notes"))
+        .include("alerts", (x) => x.select("id", "label", "notes").orderBy((y) => y.label.asc()))
         .include("household", (h) => h.select("id", "name")),
     )
     .include("appointment", (a) => a.select("id", "scheduledAt", "reason"))
@@ -70,6 +71,7 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
         }
       />
 
+      <AlertBanner alerts={patient.alerts} />
       <AllergyBanner status={patient.allergyStatus} allergies={patient.allergies} />
 
       {vitals.length > 0 ? (

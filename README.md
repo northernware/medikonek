@@ -171,19 +171,33 @@ collide with an existing booking, and the action re-checks against the whole
 clinic day before writing, so two people racing for the last slot cannot both
 get it.
 
-### Allergies and conditions
+### Clinical lists
 
-Both are lists of rows (`PatientAllergy`, `PatientCondition`), not free text, so
-each allergy carries its own reaction, severity and notes. The form field is a
-search-and-tag picker: type to filter a grouped catalogue in `lib/clinical.ts`,
-pick several, remove them as tags, and add anything the catalogue does not list
-— the suggestions are a shortcut, never a constraint.
+Allergies, chronic conditions, current medications and medical alerts are each
+lists of rows rather than free text, so an allergy carries its own reaction and
+severity and a medication carries its dose and frequency. One `ClinicalPicker`
+drives all four — type to filter a grouped catalogue in `lib/clinical.ts`, pick
+several, remove them as tags, and add anything the catalogue does not list. The
+suggestions are a shortcut, never a constraint. Each picker declares which
+per-item detail fields it wants.
 
-Each list also carries a `ClinicalListStatus`, because **an empty list is not
-the same as "no known allergies"**. `UNKNOWN` (nobody has asked) renders as an
+Medical alerts sit above the allergies on every chart, appointment and
+consultation screen: they are things to act on before touching the patient —
+anticoagulants, a pacemaker, a difficult airway — rather than history.
+
+Allergies, conditions and medications also carry a `ClinicalListStatus`, because
+**an empty list is not the same as "no known allergies"**. `UNKNOWN` (nobody has asked) renders as an
 amber warning on the chart; `NONE_KNOWN` (asked, none found) renders as a quiet
 confirmation; `RECORDED` renders the list itself, worst severity first. Nothing
 reads as safe by omission.
+
+### Deleting a list
+
+`.delete()` on the Prisma 8 ORM removes **one** row — it is shaped for a unique
+predicate. Anywhere a delete is keyed on something non-unique (a patient's
+clinical lists, a record's prescriptions) it goes through the SQL-builder lane
+instead: `tx.sql.public.<Table>.delete().where(...)`. Using the ORM there left
+every row but one behind and the next insert collided with the unique index.
 
 ### Services
 
@@ -243,10 +257,6 @@ scoping — it is not a dropdown.
 books one patient. Several members in one appointment needs a join table and a
 decision about whose record the encounter belongs to.
 
-**A primary contact / guardian per household.** Nothing currently marks which
-member to call, or who is a dependent's guardian — a nullable `primaryContactId`
-on `Household` pointing at one of its `Patient` rows would cover it.
-
 **Roles and permissions.** Every account is a doctor with full access to its own
 data. Nurses, receptionists and administrators — and permission-scoped access to
 records — are not modelled at all. This is the largest single gap for a clinic
@@ -264,9 +274,6 @@ structured or trackable.
 
 **Medical certificates and referral letters.** The printable prescription is the
 only document the app produces; these two would follow the same shape.
-
-**Emergency contact, current medications, medical alerts.** Patient profiles
-carry allergies and conditions but none of these.
 
 **Billing, payments and receipts. Reporting and CSV/Excel export. Reminder
 delivery. Two-factor authentication. Session timeouts. Consent records.** None

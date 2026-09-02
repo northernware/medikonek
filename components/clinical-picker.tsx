@@ -7,10 +7,30 @@ export type ClinicalItem = {
   label: string;
   reaction: string;
   severity: string;
+  dosage: string;
+  frequency: string;
   notes: string;
 };
 
-export const BLANK_ITEM: ClinicalItem = { label: "", reaction: "", severity: "", notes: "" };
+export const BLANK_ITEM: ClinicalItem = {
+  label: "",
+  reaction: "",
+  severity: "",
+  dosage: "",
+  frequency: "",
+  notes: "",
+};
+
+/** Which per-item detail inputs a picker shows behind its "Detail" toggle. */
+export type DetailField = "reaction" | "severity" | "dosage" | "frequency" | "notes";
+
+const DETAIL_META: Record<DetailField, { label: string; placeholder: string }> = {
+  reaction: { label: "Reaction", placeholder: "Hives, swelling" },
+  severity: { label: "Severity", placeholder: "" },
+  dosage: { label: "Dosage", placeholder: "1 tablet" },
+  frequency: { label: "Frequency", placeholder: "Twice daily" },
+  notes: { label: "Notes", placeholder: "First noted 2015" },
+};
 
 type Status = "RECORDED" | "NONE_KNOWN" | "UNKNOWN";
 
@@ -35,20 +55,25 @@ export function ClinicalPicker({
   noneLabel,
   defaultStatus,
   defaultItems,
-  withAllergyDetail = false,
+  detailFields = [],
   error,
 }: {
   legend: string;
   /** Prefix for the repeated fields, e.g. "allergy" → `allergy.label`. */
   fieldName: string;
-  statusName: string;
+  /**
+   * Field carrying the "recorded / none known / not asked" answer. Omit for a
+   * list where an empty list simply means none — medical alerts, say, where
+   * "nobody asked" is not a distinct clinical fact worth storing.
+   */
+  statusName?: string;
   groups: SuggestionGroup[];
   placeholder: string;
   noneLabel: string;
   defaultStatus: Status;
   defaultItems: ClinicalItem[];
-  /** Allergies additionally capture reaction, severity and notes per item. */
-  withAllergyDetail?: boolean;
+  /** Per-item inputs revealed by the "Detail" toggle. Empty means tags only. */
+  detailFields?: DetailField[];
   error?: string[];
 }) {
   const [status, setStatus] = useState<Status>(defaultStatus);
@@ -57,6 +82,7 @@ export function ClinicalPicker({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const hasDetail = detailFields.length > 0;
   const inputRef = useRef<HTMLInputElement>(null);
   const id = useId();
 
@@ -136,32 +162,33 @@ export function ClinicalPicker({
       <legend className="mb-1.5 block text-sm font-medium">{legend}</legend>
 
       {/* What the server reads. */}
-      <input type="hidden" name={statusName} value={status} />
+      {statusName ? <input type="hidden" name={statusName} value={status} /> : null}
       {items.map((item, i) => (
         <div key={`${id}-hidden-${i}`}>
           <input type="hidden" name={`${fieldName}.label`} value={item.label} />
-          {withAllergyDetail ? (
-            <>
-              <input type="hidden" name={`${fieldName}.reaction`} value={item.reaction} />
-              <input type="hidden" name={`${fieldName}.severity`} value={item.severity} />
-            </>
-          ) : null}
+          {detailFields
+            .filter((f) => f !== "notes")
+            .map((f) => (
+              <input key={f} type="hidden" name={`${fieldName}.${f}`} value={item[f]} />
+            ))}
           <input type="hidden" name={`${fieldName}.notes`} value={item.notes} />
         </div>
       ))}
 
-      <div className="flex flex-wrap gap-1.5">
-        <StatusChip
-          label={noneLabel}
-          active={status === "NONE_KNOWN"}
-          onClick={() => setNoList(status === "NONE_KNOWN" ? "UNKNOWN" : "NONE_KNOWN")}
-        />
-        <StatusChip
-          label="Unknown — not asked"
-          active={status === "UNKNOWN"}
-          onClick={() => setNoList("UNKNOWN")}
-        />
-      </div>
+      {statusName ? (
+        <div className="flex flex-wrap gap-1.5">
+          <StatusChip
+            label={noneLabel}
+            active={status === "NONE_KNOWN"}
+            onClick={() => setNoList(status === "NONE_KNOWN" ? "UNKNOWN" : "NONE_KNOWN")}
+          />
+          <StatusChip
+            label="Unknown — not asked"
+            active={status === "UNKNOWN"}
+            onClick={() => setNoList("UNKNOWN")}
+          />
+        </div>
+      ) : null}
 
       <div className="relative">
         <input
@@ -250,11 +277,11 @@ export function ClinicalPicker({
             <li key={`${id}-tag-${i}`} className="rounded-lg border border-border bg-surface-muted">
               <div className="flex items-center gap-2 px-2.5 py-1.5">
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.label}</span>
-                {withAllergyDetail ? (
+                {hasDetail ? (
                   <>
-                    {item.severity ? (
-                      <span className="text-xs text-ink-muted">
-                        {ALLERGY_SEVERITY_LABELS[item.severity as keyof typeof ALLERGY_SEVERITY_LABELS]}
+                    {summarise(item, detailFields) ? (
+                      <span className="truncate text-xs text-ink-muted">
+                        {summarise(item, detailFields)}
                       </span>
                     ) : null}
                     <button
@@ -276,41 +303,36 @@ export function ClinicalPicker({
                 </button>
               </div>
 
-              {withAllergyDetail && expanded === i ? (
+              {hasDetail && expanded === i ? (
                 <div className="grid gap-2 border-t border-border px-2.5 py-2 sm:grid-cols-3">
-                  <label className="text-xs">
-                    <span className="mb-1 block font-medium text-ink-muted">Reaction</span>
-                    <input
-                      value={item.reaction}
-                      onChange={(e) => patch(i, { reaction: e.target.value })}
-                      placeholder="Hives, swelling"
-                      className={CONTROL}
-                    />
-                  </label>
-                  <label className="text-xs">
-                    <span className="mb-1 block font-medium text-ink-muted">Severity</span>
-                    <select
-                      value={item.severity}
-                      onChange={(e) => patch(i, { severity: e.target.value })}
-                      className={CONTROL}
-                    >
-                      <option value="">Not recorded</option>
-                      {Object.entries(ALLERGY_SEVERITY_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-xs">
-                    <span className="mb-1 block font-medium text-ink-muted">Notes</span>
-                    <input
-                      value={item.notes}
-                      onChange={(e) => patch(i, { notes: e.target.value })}
-                      placeholder="First noted 2015"
-                      className={CONTROL}
-                    />
-                  </label>
+                  {detailFields.map((field) => (
+                    <label key={field} className="text-xs">
+                      <span className="mb-1 block font-medium text-ink-muted">
+                        {DETAIL_META[field].label}
+                      </span>
+                      {field === "severity" ? (
+                        <select
+                          value={item.severity}
+                          onChange={(e) => patch(i, { severity: e.target.value })}
+                          className={CONTROL}
+                        >
+                          <option value="">Not recorded</option>
+                          {Object.entries(ALLERGY_SEVERITY_LABELS).map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          value={item[field]}
+                          onChange={(e) => patch(i, { [field]: e.target.value })}
+                          placeholder={DETAIL_META[field].placeholder}
+                          className={CONTROL}
+                        />
+                      )}
+                    </label>
+                  ))}
                 </div>
               ) : null}
             </li>
@@ -322,15 +344,25 @@ export function ClinicalPicker({
         <p className="text-xs text-danger-ink">{error[0]}</p>
       ) : (
         <p className="text-xs text-ink-faint">
-          {status === "NONE_KNOWN"
-            ? `Recorded as ${noneLabel.toLowerCase()}.`
-            : status === "UNKNOWN" && items.length === 0
-              ? "Nothing recorded — this reads as “not asked”, not as “none”."
-              : "Type to search, or add anything not listed."}
+          {!statusName
+            ? "Type to search, or add anything not listed."
+            : status === "NONE_KNOWN"
+              ? `Recorded as ${noneLabel.toLowerCase()}.`
+              : status === "UNKNOWN" && items.length === 0
+                ? "Nothing recorded — this reads as “not asked”, not as “none”."
+                : "Type to search, or add anything not listed."}
         </p>
       )}
     </fieldset>
   );
+}
+
+/** The compact line shown on a collapsed tag, e.g. "1 tablet · Twice daily". */
+function summarise(item: ClinicalItem, fields: DetailField[]) {
+  return fields
+    .filter((f) => f !== "notes" && item[f])
+    .map((f) => (f === "severity" ? ALLERGY_SEVERITY_LABELS[item.severity as "MILD"] : item[f]))
+    .join(" · ");
 }
 
 function StatusChip({

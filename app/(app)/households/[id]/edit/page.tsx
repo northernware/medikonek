@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { updateHousehold } from "@/app/actions/households";
 import { requireDoctor } from "@/lib/auth";
 import { orm } from "@/src/prisma/db";
+import { fullName } from "@/lib/domain";
 import { HouseholdForm } from "@/components/forms/household-form";
 import { Card, PageHeader } from "@/components/ui";
 
@@ -13,6 +14,12 @@ export default async function EditHouseholdPage({ params }: PageProps<"/househol
   const { id } = await params;
 
   const household = await orm.Household
+    .include("patients", (p) =>
+      p
+        .select("id", "firstName", "middleName", "lastName")
+        .orderBy((x) => x.lastName.asc())
+        .orderBy((x) => x.firstName.asc()),
+    )
     .where((h) => h.id.eq(id))
     .where((h) => h.doctorId.eq(doctor.id))
     .first();
@@ -30,8 +37,10 @@ export default async function EditHouseholdPage({ params }: PageProps<"/househol
             name: household.name,
             address: household.address ?? "",
             contactNumber: household.contactNumber ?? "",
+            primaryContactId: household.primaryContactId ?? "",
             notes: household.notes ?? "",
           }}
+          members={household.patients.map((p) => ({ id: p.id, label: fullName(p) }))}
           submitLabel="Save changes"
           cancelHref={`/households/${household.id}`}
         />

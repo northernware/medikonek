@@ -28,13 +28,18 @@ namespace public {
     address       String?
     contactNumber String?
     notes         String?
+    // Who to call for this household, and the guardian for any dependants in it.
+    // SetNull rather than Cascade: losing the contact must not take the household.
+    primaryContactId String?
     createdAt     TimestampString(3) @default(now())
     updatedAt     TimestampString(3)
     patients      Patient[]
+    primaryContact Patient?    @relation("HouseholdPrimaryContact", fields: [primaryContactId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Household_primaryContactId_fkey")
     doctor        Doctor       @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Household_doctorId_fkey")
 
     @@index([doctorId], map: "Household_doctorId_idx")
     @@index([doctorId, name], map: "Household_doctorId_name_key", unique: true)
+    @@index([primaryContactId], map: "Household_primaryContactId_key", unique: true)
 
     @@map("Household")
   }
@@ -55,10 +60,19 @@ namespace public {
     updatedAt         TimestampString(3)
     allergyStatus     pg.enum(ClinicalListStatus) @default("UNKNOWN")
     conditionStatus   pg.enum(ClinicalListStatus) @default("UNKNOWN")
+    medicationStatus  pg.enum(ClinicalListStatus) @default("UNKNOWN")
+    // The person to ring is often outside the practice, so this is free text
+    // rather than a link to another Patient.
+    emergencyContactName         String?
+    emergencyContactRelationship String?
+    emergencyContactNumber       String?
     appointments      Appointment[]
     medicalRecords    MedicalRecord[]
     allergies         PatientAllergy[]
     conditions        PatientCondition[]
+    medications       PatientMedication[]
+    alerts            PatientAlert[]
+    primaryContactFor Household[]                 @relation("HouseholdPrimaryContact")
     household         Household                   @relation(fields: [householdId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Patient_householdId_fkey")
 
     @@index([householdId], map: "Patient_householdId_idx")
@@ -166,6 +180,41 @@ namespace public {
     @@index([patientId, label], map: "PatientCondition_patientId_label_key", unique: true)
 
     @@map("PatientCondition")
+  }
+
+  // A medicine the patient is currently taking — distinct from a Prescription,
+  // which records what was issued at one visit.
+  model PatientMedication {
+    id        String       @id(map: "PatientMedication_pkey")
+    patientId String
+    label     String
+    dosage    String?
+    frequency String?
+    notes     String?
+    createdAt TimestampString(3) @default(now())
+    patient   Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "PatientMedication_patientId_fkey")
+
+    @@index([patientId], map: "PatientMedication_patientId_idx")
+    @@index([patientId, label], map: "PatientMedication_patientId_label_key", unique: true)
+
+    @@map("PatientMedication")
+  }
+
+  // A standing warning that belongs at the top of the chart — anticoagulants, a
+  // pacemaker, a difficult airway. Separate from conditions because these are
+  // things to act on before touching the patient, not history.
+  model PatientAlert {
+    id        String       @id(map: "PatientAlert_pkey")
+    patientId String
+    label     String
+    notes     String?
+    createdAt TimestampString(3) @default(now())
+    patient   Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "PatientAlert_patientId_fkey")
+
+    @@index([patientId], map: "PatientAlert_patientId_idx")
+    @@index([patientId, label], map: "PatientAlert_patientId_label_key", unique: true)
+
+    @@map("PatientAlert")
   }
 
   model Prescription {

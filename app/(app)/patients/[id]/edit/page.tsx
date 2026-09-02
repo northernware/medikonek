@@ -7,6 +7,7 @@ import { calendarDateFromDb } from "@/lib/datetime";
 import { toDateInputValue } from "@/lib/datetime";
 import { fullName } from "@/lib/domain";
 import { PatientForm } from "@/components/forms/patient-form";
+import { BLANK_ITEM } from "@/components/clinical-picker";
 import { Card, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Edit patient" };
@@ -21,6 +22,14 @@ export default async function EditPatientPage({ params }: PageProps<"/patients/[
     )
     .include("conditions", (c) =>
       c.select("id", "label", "notes").orderBy((x) => x.createdAt.asc()),
+    )
+    .include("medications", (m) =>
+      m
+        .select("id", "label", "dosage", "frequency", "notes")
+        .orderBy((x) => x.createdAt.asc()),
+    )
+    .include("alerts", (a) =>
+      a.select("id", "label", "notes").orderBy((x) => x.createdAt.asc()),
     )
     .where((p) => p.id.eq(id))
     .where((p) => p.household.some((h) => h.doctorId.eq(doctor.id)))
@@ -53,6 +62,7 @@ export default async function EditPatientPage({ params }: PageProps<"/patients/[
             bloodType: patient.bloodType,
             allergyStatus: patient.allergyStatus,
             allergies: patient.allergies.map((a) => ({
+              ...BLANK_ITEM,
               label: a.label,
               reaction: a.reaction ?? "",
               severity: a.severity ?? "",
@@ -60,13 +70,28 @@ export default async function EditPatientPage({ params }: PageProps<"/patients/[
             })),
             conditionStatus: patient.conditionStatus,
             conditions: patient.conditions.map((c) => ({
+              ...BLANK_ITEM,
               label: c.label,
-              reaction: "",
-              severity: "",
               notes: c.notes ?? "",
+            })),
+            medicationStatus: patient.medicationStatus,
+            medications: patient.medications.map((m) => ({
+              ...BLANK_ITEM,
+              label: m.label,
+              dosage: m.dosage ?? "",
+              frequency: m.frequency ?? "",
+              notes: m.notes ?? "",
+            })),
+            alerts: patient.alerts.map((a) => ({
+              ...BLANK_ITEM,
+              label: a.label,
+              notes: a.notes ?? "",
             })),
             contactNumber: patient.contactNumber ?? "",
             email: patient.email ?? "",
+            emergencyContactName: patient.emergencyContactName ?? "",
+            emergencyContactRelationship: patient.emergencyContactRelationship ?? "",
+            emergencyContactNumber: patient.emergencyContactNumber ?? "",
           }}
           submitLabel="Save changes"
           cancelHref={`/patients/${patient.id}`}

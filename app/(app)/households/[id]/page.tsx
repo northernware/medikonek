@@ -53,6 +53,10 @@ export default async function HouseholdPage({ params }: PageProps<"/households/[
   const household = await loadHousehold(doctor.id, id);
   if (!household) notFound();
 
+  // The members are already loaded, so the contact is a lookup rather than a query.
+  const primaryContact =
+    household.patients.find((p) => p.id === household.primaryContactId) ?? null;
+
   const upcoming = (
     await appointmentListQuery()
       .where((a) => a.doctorId.eq(doctor.id))
@@ -81,9 +85,29 @@ export default async function HouseholdPage({ params }: PageProps<"/households/[
       />
 
       <Card className="p-5">
-        <dl className="grid gap-4 sm:grid-cols-2">
+        <dl className="grid gap-4 sm:grid-cols-3">
           <Detail label="Address" value={household.address} />
           <Detail label="Contact number" value={household.contactNumber} />
+          <Detail
+            label="Primary contact"
+            value={
+              primaryContact ? (
+                <Link
+                  href={`/patients/${primaryContact.id}`}
+                  className="text-accent-ink hover:underline"
+                >
+                  {fullName(primaryContact)}
+                </Link>
+              ) : household.patients.length > 0 ? (
+                <Link
+                  href={`/households/${household.id}/edit`}
+                  className="text-warn-ink hover:underline"
+                >
+                  Nobody assigned
+                </Link>
+              ) : null
+            }
+          />
         </dl>
         {household.notes ? (
           <div className="mt-4 border-t border-border pt-4">

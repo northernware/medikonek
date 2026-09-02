@@ -174,7 +174,14 @@ export async function updateMedicalRecord(
       updatedAt: instantToDb(new Date()),
     });
     // The prescription list is edited as a whole, so replace it wholesale.
-    await t.Prescription.where((p) => p.medicalRecordId.eq(recordId)).delete();
+    // `.delete()` on the ORM removes one row; prescriptions are matched by a
+    // non-unique key, so this has to go through the SQL-builder lane or all but
+    // one would survive the edit.
+    const clear = tx.sql.public.Prescription
+      .delete()
+      .where((f, fns) => fns.eq(f.medicalRecordId, recordId))
+      .build();
+    await tx.execute(clear as never);
     await writePrescriptions(t, recordId, rows);
   });
 

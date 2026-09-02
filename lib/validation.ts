@@ -84,6 +84,7 @@ export const householdSchema = z.object({
   name: requiredText("Household name", 120),
   address: optionalText(300),
   contactNumber: optionalText(40),
+  primaryContactId: optionalText(40),
   notes: optionalText(2000),
 });
 
@@ -98,7 +99,11 @@ export const patientSchema = z.object({
   bloodType: z.enum(BloodType).default(BloodType.UNKNOWN),
   allergyStatus: z.enum(ClinicalListStatus).default(ClinicalListStatus.UNKNOWN),
   conditionStatus: z.enum(ClinicalListStatus).default(ClinicalListStatus.UNKNOWN),
+  medicationStatus: z.enum(ClinicalListStatus).default(ClinicalListStatus.UNKNOWN),
   contactNumber: optionalText(40),
+  emergencyContactName: optionalText(120),
+  emergencyContactRelationship: optionalText(60),
+  emergencyContactNumber: optionalText(40),
   email: optionalText(160).refine((v) => v === null || z.email().safeParse(v).success, {
     message: "Enter a valid email address",
   }),
@@ -165,6 +170,8 @@ export const medicalRecordSchema = z.object({
 export const clinicalItemSchema = z.object({
   label: requiredText("Entry", 160),
   reaction: optionalText(200),
+  dosage: optionalText(80),
+  frequency: optionalText(80),
   severity: z
     .string()
     .trim()

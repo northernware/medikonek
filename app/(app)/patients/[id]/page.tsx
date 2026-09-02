@@ -16,7 +16,7 @@ import {
   SEX_LABELS,
 } from "@/lib/domain";
 import { AppointmentList } from "@/components/appointment-list";
-import { AllergyBanner } from "@/components/allergy-banner";
+import { AlertBanner, AllergyBanner } from "@/components/allergy-banner";
 import { DangerZone } from "@/components/danger-zone";
 import { Badge, buttonClass, Card, CardHeader, Detail, EmptyState, PageHeader } from "@/components/ui";
 
@@ -41,6 +41,12 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
     .include("conditions", (c) =>
       c.select("id", "label", "notes").orderBy((x) => x.label.asc()),
     )
+    .include("medications", (m) =>
+      m
+        .select("id", "label", "dosage", "frequency", "notes")
+        .orderBy((x) => x.label.asc()),
+    )
+    .include("alerts", (a) => a.select("id", "label", "notes").orderBy((x) => x.label.asc()))
     .include("medicalRecords", (r) =>
       r
         .select(
@@ -99,6 +105,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
         }
       />
 
+      <AlertBanner alerts={patient.alerts} />
       <AllergyBanner status={patient.allergyStatus} allergies={patient.allergies} />
 
       <Card className="p-5">
@@ -107,6 +114,45 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
           <Detail label="Blood type" value={BLOOD_TYPE_LABELS[patient.bloodType]} />
           <Detail label="Contact" value={patient.contactNumber ?? patient.household.contactNumber} />
           <Detail label="Email" value={patient.email} />
+          <Detail
+            label="Emergency contact"
+            value={
+              patient.emergencyContactName ? (
+                <>
+                  {patient.emergencyContactName}
+                  <span className="mt-0.5 block text-xs text-ink-faint">
+                    {[patient.emergencyContactRelationship, patient.emergencyContactNumber]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </>
+              ) : null
+            }
+          />
+          <Detail
+            label="Current medications"
+            value={
+              patient.medications.length > 0 ? (
+                <ul className="space-y-0.5">
+                  {patient.medications.map((m) => (
+                    <li key={m.id}>
+                      {m.label}
+                      {[m.dosage, m.frequency].filter(Boolean).length > 0 ? (
+                        <span className="text-ink-faint">
+                          {" "}
+                          — {[m.dosage, m.frequency].filter(Boolean).join(", ")}
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : patient.medicationStatus === "NONE_KNOWN" ? (
+                "None"
+              ) : (
+                <span className="text-warn-ink">Not asked</span>
+              )
+            }
+          />
           <Detail label="Visits recorded" value={patient.medicalRecords.length} />
           <Detail
             label="Chronic conditions"

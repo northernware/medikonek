@@ -9,7 +9,7 @@ import { formatDateTime, toDateTimeLocalValue } from "@/lib/datetime";
 import { ageFrom, fullName, SEX_LABELS } from "@/lib/domain";
 import { RecordForm } from "@/components/forms/record-form";
 import { blankRecord } from "@/lib/form-defaults";
-import { AllergyBanner } from "@/components/allergy-banner";
+import { AlertBanner, AllergyBanner } from "@/components/allergy-banner";
 import { Card, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Document visit" };
@@ -23,6 +23,7 @@ export default async function NewRecordPage({ searchParams }: PageProps<"/record
   const patient = await orm.Patient
     .select("id", "firstName", "middleName", "lastName", "dateOfBirth", "sex", "allergyStatus")
     .include("allergies", (a) => a.select("id", "label", "reaction", "severity", "notes"))
+    .include("alerts", (x) => x.select("id", "label", "notes").orderBy((y) => y.label.asc()))
     .include("household", (h) => h.select("id", "name"))
     .where((p) => p.id.eq(patientId))
     .where((p) => p.household.some((h) => h.doctorId.eq(doctor.id)))
@@ -64,6 +65,7 @@ export default async function NewRecordPage({ searchParams }: PageProps<"/record
         }
       />
 
+      <AlertBanner alerts={patient.alerts} />
       <AllergyBanner status={patient.allergyStatus} allergies={patient.allergies} />
 
       <Card className="p-5 sm:p-6">

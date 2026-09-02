@@ -10,7 +10,24 @@ export type AllergyEntry = {
   notes: string | null;
 };
 
-/** The `select` every query feeding this banner needs. */
+/** Standing warnings, above the allergies — things to act on before touching the patient. */
+export function AlertBanner({ alerts }: { alerts: { id: string; label: string; notes: string | null }[] }) {
+  if (alerts.length === 0) return null;
+  return (
+    <div className="rounded-xl border border-warn/50 bg-warn-soft px-5 py-4">
+      <p className="text-xs font-semibold tracking-wide text-warn-ink uppercase">Medical alerts</p>
+      <ul className="mt-2 space-y-1">
+        {alerts.map((a) => (
+          <li key={a.id} className="text-sm text-warn-ink">
+            <span className="font-medium">{a.label}</span>
+            {a.notes ? <span className="opacity-90"> — {a.notes}</span> : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /**
  * Allergies at the top of a chart, in one of three states — and all three say
  * something. An empty list is not "safe": a patient nobody has asked reads as

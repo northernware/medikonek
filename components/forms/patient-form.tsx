@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { Field, FieldGrid, FormError, Select, SubmitButton, TextInput } from "@/components/form";
 import { buttonClass } from "@/components/ui";
 import { BLOOD_TYPE_LABELS, RELATIONSHIP_LABELS, SEX_LABELS } from "@/lib/domain";
-import { ALLERGY_GROUPS, CONDITION_GROUPS } from "@/lib/clinical";
+import { ALERT_GROUPS, ALLERGY_GROUPS, CONDITION_GROUPS, MEDICATION_GROUPS } from "@/lib/clinical";
 import { ClinicalPicker } from "@/components/clinical-picker";
 import type { PatientDefaults } from "@/lib/form-defaults";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/validation";
@@ -128,7 +128,7 @@ export function PatientForm({
           noneLabel="No known allergies"
           defaultStatus={defaults.allergyStatus as "RECORDED" | "NONE_KNOWN" | "UNKNOWN"}
           defaultItems={defaults.allergies}
-          withAllergyDetail
+          detailFields={["reaction", "severity", "notes"]}
           error={err?.allergyStatus}
         />
 
@@ -141,7 +141,32 @@ export function PatientForm({
           noneLabel="No known chronic conditions"
           defaultStatus={defaults.conditionStatus as "RECORDED" | "NONE_KNOWN" | "UNKNOWN"}
           defaultItems={defaults.conditions}
+          detailFields={["notes"]}
           error={err?.conditionStatus}
+        />
+
+        <ClinicalPicker
+          legend="Current medications"
+          fieldName="medication"
+          statusName="medicationStatus"
+          groups={MEDICATION_GROUPS}
+          placeholder="Search or select medicines…"
+          noneLabel="No current medications"
+          defaultStatus={defaults.medicationStatus as "RECORDED" | "NONE_KNOWN" | "UNKNOWN"}
+          defaultItems={defaults.medications}
+          detailFields={["dosage", "frequency", "notes"]}
+          error={err?.medicationStatus}
+        />
+
+        <ClinicalPicker
+          legend="Medical alerts"
+          fieldName="alert"
+          groups={ALERT_GROUPS}
+          placeholder="Search or add an alert…"
+          noneLabel="No alerts"
+          defaultStatus={defaults.alerts.length > 0 ? "RECORDED" : "UNKNOWN"}
+          defaultItems={defaults.alerts}
+          detailFields={["notes"]}
         />
 
         <FieldGrid>
@@ -155,6 +180,49 @@ export function PatientForm({
               type="email"
               defaultValue={defaults.email}
               invalid={Boolean(err?.email)}
+            />
+          </Field>
+        </FieldGrid>
+      </section>
+
+      <section className="space-y-4 border-t border-border pt-5">
+        <div>
+          <h2 className="text-sm font-semibold">Emergency contact</h2>
+          <p className="text-sm text-ink-muted">
+            Who to ring about this patient. Often someone outside the practice.
+          </p>
+        </div>
+        <FieldGrid className="sm:grid-cols-3">
+          <Field label="Name" htmlFor="emergencyContactName" error={err?.emergencyContactName}>
+            <TextInput
+              id="emergencyContactName"
+              name="emergencyContactName"
+              defaultValue={defaults.emergencyContactName}
+              placeholder="Marilou Dela Cruz"
+            />
+          </Field>
+          <Field
+            label="Relationship"
+            htmlFor="emergencyContactRelationship"
+            error={err?.emergencyContactRelationship}
+          >
+            <TextInput
+              id="emergencyContactRelationship"
+              name="emergencyContactRelationship"
+              defaultValue={defaults.emergencyContactRelationship}
+              placeholder="Spouse"
+            />
+          </Field>
+          <Field
+            label="Contact number"
+            htmlFor="emergencyContactNumber"
+            error={err?.emergencyContactNumber}
+          >
+            <TextInput
+              id="emergencyContactNumber"
+              name="emergencyContactNumber"
+              defaultValue={defaults.emergencyContactNumber}
+              placeholder="0917 000 0000"
             />
           </Field>
         </FieldGrid>
