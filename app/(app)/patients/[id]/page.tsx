@@ -18,7 +18,7 @@ import {
 import { AppointmentList } from "@/components/appointment-list";
 import { AlertBanner, AllergyBanner } from "@/components/allergy-banner";
 import { DangerZone } from "@/components/danger-zone";
-import { Badge, buttonClass, Card, CardHeader, Detail, EmptyState, PageHeader } from "@/components/ui";
+import { Badge, Card, Detail, EmptyState, PageHeader, SectionTitle, buttonClass } from "@/components/ui";
 
 export async function generateMetadata({ params }: PageProps<"/patients/[id]">): Promise<Metadata> {
   const doctor = await requireDoctor();
@@ -105,11 +105,105 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
         }
       />
 
-      <AlertBanner alerts={patient.alerts} />
-      <AllergyBanner status={patient.allergyStatus} allergies={patient.allergies} />
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* The timeline is what the doctor reads; it gets the width. */}
+        <div className="space-y-6 lg:col-span-2">
+      <section>
+        <SectionTitle
+          title="Visit history"
+          hint={patient.medicalRecords.length > 0 ? `${patient.medicalRecords.length} recorded` : undefined}
+          action={
+            <Link
+              href={`/records/new?patientId=${patient.id}`}
+              className="font-medium text-accent-ink hover:underline"
+            >
+              Document visit
+            </Link>
+          }
+        />
+        <Card>
+        {patient.medicalRecords.length === 0 ? (
+          <EmptyState
+            title="No visits recorded"
+            description="Document a consultation and it will build this patient's history."
+            action={
+              <Link href={`/records/new?patientId=${patient.id}`} className={buttonClass("primary")}>
+                Document visit
+              </Link>
+            }
+          />
+        ) : (
+          <ul className="divide-y divide-border">
+            {patient.medicalRecords.map((record) => {
+              const bp = bloodPressure(record.systolic, record.diastolic);
+              const vitals = [
+                bp ? `BP ${bp}` : null,
+                record.temperatureC != null ? `${record.temperatureC}°C` : null,
+                record.weightKg != null ? `${record.weightKg} kg` : null,
+              ].filter(Boolean);
 
-      <Card className="p-5">
-        <dl className="grid gap-4 sm:grid-cols-3">
+              return (
+                <li key={record.id} className="transition-colors hover:bg-surface-muted">
+                  <Link href={`/records/${record.id}`} className="block px-4 py-3">
+                    <div className="flex items-baseline gap-4">
+                      <span className="tabular w-24 shrink-0 text-[13px] text-ink-muted">
+                        {formatDate(instantFromDb(record.visitDate))}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-medium">{record.chiefComplaint}</span>
+                        {record.assessment ? (
+                          <span className="mt-0.5 block truncate text-xs text-ink-muted">
+                            {record.assessment}
+                          </span>
+                        ) : null}
+                      </span>
+                      {record.prescriptions > 0 ? (
+                        <Badge tone="accent">
+                          {record.prescriptions} Rx
+                        </Badge>
+                      ) : null}
+                    </div>
+                    {vitals.length > 0 ? (
+                      <p className="tabular mt-1.5 pl-28 text-xs text-ink-faint">{vitals.join(" · ")}</p>
+                    ) : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        </Card>
+      </section>
+
+      <section>
+        <SectionTitle
+          title="Appointments"
+          action={
+            <Link
+              href={`/appointments/new?patientId=${patient.id}`}
+              className="font-medium text-accent-ink hover:underline"
+            >
+              Book
+            </Link>
+          }
+        />
+        <Card>
+          <AppointmentList
+            appointments={appointments}
+            emptyTitle="No appointments"
+            emptyDescription="Nothing booked for this patient, past or future."
+          />
+        </Card>
+      </section>
+
+        </div>
+
+        {/* Standing clinical context, kept beside the timeline rather than above it. */}
+        <aside className="space-y-4">
+          <AlertBanner alerts={patient.alerts} />
+          <AllergyBanner status={patient.allergyStatus} allergies={patient.allergies} />
+      <Card className="p-4">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3.5">
           <Detail label="Date of birth" value={formatCalendarDate(calendarDateFromDb(patient.dateOfBirth))} />
           <Detail label="Blood type" value={BLOOD_TYPE_LABELS[patient.bloodType]} />
           <Detail label="Contact" value={patient.contactNumber ?? patient.household.contactNumber} />
@@ -130,6 +224,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
             }
           />
           <Detail
+            className="col-span-2"
             label="Current medications"
             value={
               patient.medications.length > 0 ? (
@@ -155,6 +250,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
           />
           <Detail label="Visits recorded" value={patient.medicalRecords.length} />
           <Detail
+            className="col-span-2"
             label="Chronic conditions"
             value={
               patient.conditions.length > 0 ? (
@@ -187,102 +283,19 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
         ) : null}
       </Card>
 
-      <Card>
-        <CardHeader
-          title="Visit history"
-          subtitle={
-            patient.medicalRecords.length > 0
-              ? `Most recent first · ${patient.medicalRecords.length} in total`
-              : undefined
-          }
-          action={
-            <Link
-              href={`/records/new?patientId=${patient.id}`}
-              className="text-sm font-medium text-accent-ink hover:underline"
-            >
-              Document visit
-            </Link>
-          }
-        />
-        {patient.medicalRecords.length === 0 ? (
-          <EmptyState
-            title="No visits recorded"
-            description="Document a consultation and it will build this patient's history."
-            action={
-              <Link href={`/records/new?patientId=${patient.id}`} className={buttonClass("primary")}>
-                Document visit
-              </Link>
-            }
-          />
-        ) : (
-          <ul className="divide-y divide-border">
-            {patient.medicalRecords.map((record) => {
-              const bp = bloodPressure(record.systolic, record.diastolic);
-              const vitals = [
-                bp ? `BP ${bp}` : null,
-                record.temperatureC != null ? `${record.temperatureC}°C` : null,
-                record.weightKg != null ? `${record.weightKg} kg` : null,
-              ].filter(Boolean);
+        </aside>
+      </div>
 
-              return (
-                <li key={record.id} className="transition-colors hover:bg-surface-muted">
-                  <Link href={`/records/${record.id}`} className="block px-5 py-4">
-                    <div className="flex items-baseline gap-4">
-                      <span className="tabular w-28 shrink-0 text-sm text-ink-muted">
-                        {formatDate(instantFromDb(record.visitDate))}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium">{record.chiefComplaint}</span>
-                        {record.assessment ? (
-                          <span className="mt-0.5 block truncate text-sm text-ink-muted">
-                            {record.assessment}
-                          </span>
-                        ) : null}
-                      </span>
-                      {record.prescriptions > 0 ? (
-                        <Badge tone="accent">
-                          {record.prescriptions} Rx
-                        </Badge>
-                      ) : null}
-                    </div>
-                    {vitals.length > 0 ? (
-                      <p className="tabular mt-1.5 pl-32 text-xs text-ink-faint">{vitals.join(" · ")}</p>
-                    ) : null}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Card>
-
-      <Card>
-        <CardHeader
-          title="Appointments"
-          action={
-            <Link
-              href={`/appointments/new?patientId=${patient.id}`}
-              className="text-sm font-medium text-accent-ink hover:underline"
-            >
-              Book
-            </Link>
-          }
-        />
-        <AppointmentList
-          appointments={appointments}
-          emptyTitle="No appointments"
-          emptyDescription="Nothing booked for this patient, past or future."
-        />
-      </Card>
-
-      <DangerZone
+      <div className="lg:max-w-[calc(66.666%-0.75rem)]">
+        <DangerZone
         action={deletePatient}
         fieldName="patientId"
         fieldValue={patient.id}
         summary="Delete this patient"
         warning={`This permanently removes ${fullName(patient)} along with ${patient.medicalRecords.length} medical record(s) and every appointment. It cannot be undone.`}
-        confirmLabel="Delete patient and all records"
-      />
+          confirmLabel="Delete patient and all records"
+        />
+      </div>
     </div>
   );
 }

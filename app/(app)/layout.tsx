@@ -16,11 +16,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <div className="lg:flex lg:min-h-dvh">
-      <aside className="hidden lg:flex lg:w-60 lg:shrink-0 lg:flex-col lg:border-r lg:border-border lg:bg-surface">
-        <div className="px-5 py-5">
+      <aside className="hidden lg:flex lg:w-[236px] lg:shrink-0 lg:flex-col lg:border-r lg:border-border lg:bg-surface">
+        <div className="px-4 py-4">
           <Brand />
         </div>
-        <div className="flex-1 px-3">
+        <div className="flex-1 px-2.5">
           <Nav orientation="sidebar" />
         </div>
         <DoctorCard name={doctor.fullName} detail={doctor.specialty ?? doctor.email} initials={initials} />
@@ -37,7 +37,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       </header>
 
       <main className="min-w-0 flex-1">
-        <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">{children}</div>
+        <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</div>
       </main>
     </div>
   );
