@@ -1,7 +1,13 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { db, orm } from "./db";
-import { calendarDateToDb, instantToDb } from "../../lib/datetime";
+import {
+  calendarDateToDb,
+  dayKey,
+  fromDateTimeLocalValue,
+  instantToDb,
+  startOfClinicDay,
+} from "../../lib/datetime";
 import { newId } from "../../lib/ids";
 import {
   AllergySeverity,
@@ -19,17 +25,39 @@ import {
 const DEMO_EMAIL = "doctor@medikonek.test";
 const DEMO_PASSWORD = "medikonek-demo";
 
+const DAY_MS = 86_400_000;
+
+/** The clinic-day key `offset` days from today. Manila keeps no DST, so a flat
+ *  24-hour step is exact and the key is re-derived in clinic time either way. */
+function clinicDay(offset: number) {
+  const today = startOfClinicDay(dayKey(new Date()));
+  return dayKey(new Date(today.getTime() + offset * DAY_MS));
+}
+
+/** The weekday of a "YYYY-MM-DD" key, read as a plain calendar date. */
+function weekdayOf(key: string) {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
 /**
  * Days from today at a given clinic hour, so the seed always looks current.
  * Sundays are nudged to the Monday after — the clinic is closed, and demo data
  * that breaks the app's own booking rules is just confusing.
+ *
+ * The hours below are clinic hours, and they are built through the clinic-day
+ * key rather than `setHours`, which would read whichever timezone the machine
+ * running the seed happens to be in. On a UTC container that put every 9 AM slot
+ * at 5 PM in Manila and filled the demo schedule with evening appointments.
  */
 function at(dayOffset: number, hour: number, minute = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() + dayOffset);
-  if (d.getDay() === 0) d.setDate(d.getDate() + 1);
-  d.setHours(hour, minute, 0, 0);
-  return instantToDb(d);
+  let key = clinicDay(dayOffset);
+  if (weekdayOf(key) === 0) key = clinicDay(dayOffset + 1);
+  return instantToDb(fromDateTimeLocalValue(`${key}T${pad2(hour)}:${pad2(minute)}`)!);
 }
 
 function born(year: number, month: number, day: number) {
