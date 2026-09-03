@@ -32,8 +32,13 @@ export function Nav({ orientation }: { orientation: "sidebar" | "bar" }) {
             href={link.href}
             aria-current={active ? "page" : undefined}
             className={[
-              "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors",
-              active ? "bg-accent-soft text-accent-ink" : "text-ink-muted hover:bg-surface-muted hover:text-ink",
+              "relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors",
+              sidebar
+                ? "before:absolute before:left-0 before:top-1/2 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:transition-colors"
+                : "",
+              active
+                ? "bg-surface-muted text-ink before:bg-accent"
+                : "text-ink-muted before:bg-transparent hover:bg-surface-muted hover:text-ink",
             ].join(" ")}
           >
             <svg
@@ -44,7 +49,7 @@ export function Nav({ orientation }: { orientation: "sidebar" | "bar" }) {
               strokeLinecap="round"
               strokeLinejoin="round"
               aria-hidden="true"
-              className="size-4 shrink-0"
+              className="size-4 shrink-0 opacity-80"
             >
               <path d={link.icon} />
             </svg>

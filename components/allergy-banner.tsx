@@ -14,11 +14,11 @@ export type AllergyEntry = {
 export function AlertBanner({ alerts }: { alerts: { id: string; label: string; notes: string | null }[] }) {
   if (alerts.length === 0) return null;
   return (
-    <div className="rounded-xl border border-warn/50 bg-warn-soft px-5 py-4">
-      <p className="text-xs font-semibold tracking-wide text-warn-ink uppercase">Medical alerts</p>
-      <ul className="mt-2 space-y-1">
+    <div className="rounded-lg border border-border border-l-2 border-l-warn bg-warn-tint px-3.5 py-3">
+      <p className="text-[10px] font-semibold tracking-[0.09em] text-warn-ink uppercase">Medical alerts</p>
+      <ul className="mt-1.5 space-y-1">
         {alerts.map((a) => (
-          <li key={a.id} className="text-sm text-warn-ink">
+          <li key={a.id} className="text-[13px] text-warn-ink">
             <span className="font-medium">{a.label}</span>
             {a.notes ? <span className="opacity-90"> — {a.notes}</span> : null}
           </li>
@@ -42,7 +42,7 @@ export function AllergyBanner({
 }) {
   if (status === "NONE_KNOWN" && allergies.length === 0) {
     return (
-      <p className="rounded-xl border border-border bg-surface px-5 py-3 text-sm text-ink-muted">
+      <p className="rounded-lg border border-border border-l-2 border-l-ok bg-surface px-3.5 py-2.5 text-[13px] text-ink-muted">
         <span className="font-medium text-ink">No known allergies</span> — asked and recorded.
       </p>
     );
@@ -50,7 +50,7 @@ export function AllergyBanner({
 
   if (allergies.length === 0) {
     return (
-      <p className="rounded-xl border border-warn/40 bg-warn-soft px-5 py-3 text-sm text-warn-ink">
+      <p className="rounded-lg border border-border border-l-2 border-l-warn bg-warn-tint px-3.5 py-2.5 text-[13px] text-warn-ink">
         <span className="font-medium">Allergies not recorded.</span> Nobody has taken an allergy
         history for this patient yet.
       </p>
@@ -58,11 +58,11 @@ export function AllergyBanner({
   }
 
   return (
-    <div className="rounded-xl border border-danger/30 bg-danger-soft px-5 py-4">
-      <p className="text-xs font-semibold tracking-wide text-danger-ink uppercase">Allergies</p>
-      <ul className="mt-2 space-y-1.5">
+    <div className="rounded-lg border border-border border-l-2 border-l-danger bg-danger-tint px-3.5 py-3">
+      <p className="text-[10px] font-semibold tracking-[0.09em] text-danger-ink uppercase">Allergies</p>
+      <ul className="mt-1.5 space-y-1.5">
         {sortAllergies(allergies).map((a) => (
-          <li key={a.id} className="text-sm text-danger-ink">
+          <li key={a.id} className="text-[13px] text-danger-ink">
             <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <span className="font-medium">{a.label}</span>
               {a.severity ? (

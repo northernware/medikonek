@@ -34,7 +34,22 @@
   --ok-soft: oklch(0.95 0.04 155);
   --ok-ink: oklch(0.42 0.11 155);
 
+  /* Tints for badges and rules — lighter than the -soft fills they replace, so a
+     status reads as a marking on the surface rather than a second card. */
+  --accent-tint: oklch(0.968 0.018 195);
+  --danger-tint: oklch(0.974 0.018 22);
+  --warn-tint: oklch(0.975 0.03 85);
+  --ok-tint: oklch(0.968 0.024 155);
+
+  /* Elevation by role. Structure is carried by hairlines; a shadow is spent only
+     on things that genuinely float, which is what keeps panels from all reading
+     as the same object. */
   --shadow-card: 0 1px 2px oklch(0.24 0.02 250 / 0.05), 0 1px 3px oklch(0.24 0.02 250 / 0.04);
+  --shadow-pop: 0 4px 12px oklch(0.24 0.02 250 / 0.1), 0 1px 3px oklch(0.24 0.02 250 / 0.06);
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -67,7 +82,13 @@
     --ok-soft: oklch(0.3 0.06 155);
     --ok-ink: oklch(0.85 0.1 155);
 
+    --accent-tint: oklch(0.28 0.035 195);
+    --danger-tint: oklch(0.285 0.05 22);
+    --warn-tint: oklch(0.29 0.045 75);
+    --ok-tint: oklch(0.275 0.04 155);
+
     --shadow-card: 0 1px 2px oklch(0 0 0 / 0.3), 0 1px 3px oklch(0 0 0 / 0.2);
+    --shadow-pop: 0 4px 14px oklch(0 0 0 / 0.45), 0 1px 3px oklch(0 0 0 / 0.3);
   }
 }
 
@@ -103,7 +124,17 @@
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
+  --color-accent-tint: var(--accent-tint);
+  --color-danger-tint: var(--danger-tint);
+  --color-warn-tint: var(--warn-tint);
+  --color-ok-tint: var(--ok-tint);
+
   --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
 }
 
 body {
@@ -123,6 +154,28 @@ body {
 /* Tabular figures wherever numbers are meant to line up in columns. */
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Figures that are read as data — counts, times, vitals — take the mono face so
+   digits share a width and columns line up down a list. Labels stay in the sans. */
+.nums {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "zero" 0;
+  letter-spacing: -0.01em;
+}
+
+/* A status marking: a coloured dot beside text, so state never rests on the
+   colour of the text alone. */
+.dot::before {
+  content: "";
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 9999px;
+  background: currentColor;
+  margin-right: 0.4rem;
+  vertical-align: 0.08em;
 }
 
 /* ---------------------------------------------------------------------------

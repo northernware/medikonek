@@ -71,14 +71,14 @@ export default async function HouseholdsPage({ searchParams }: PageProps<"/house
           <ul className="divide-y divide-border">
             {households.map((household) => (
               <li key={household.id} className="transition-colors hover:bg-surface-muted">
-                <Link href={`/households/${household.id}`} className="flex items-baseline gap-4 px-5 py-4">
+                <Link href={`/households/${household.id}`} className="flex items-baseline gap-4 px-4 py-2.5">
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{household.name}</span>
-                    <span className="block truncate text-sm text-ink-muted">
+                    <span className="block truncate text-[13px] font-medium">{household.name}</span>
+                    <span className="block truncate text-xs text-ink-muted">
                       {household.address || household.contactNumber || "No address on file"}
                     </span>
                   </span>
-                  <span className="tabular shrink-0 text-sm text-ink-muted">
+                  <span className="tabular shrink-0 text-xs text-ink-muted">
                     {household.patients}{" "}
                     {household.patients === 1 ? "member" : "members"}
                   </span>
