@@ -22,8 +22,8 @@ import {
   VisitPriority,
 } from "../../lib/enums";
 
-const DEMO_EMAIL = "doctor@medikonek.test";
-const DEMO_PASSWORD = "medikonek-demo";
+const DEMO_EMAIL = "doctor@medikonek.com";
+const DEMO_PASSWORD = "password";
 
 const DAY_MS = 86_400_000;
 
