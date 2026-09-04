@@ -83,6 +83,33 @@ prompt. Afterwards `db:verify` reports that marker and schema match the contract
 Do not run `db:seed` against a database with real patients in it — it creates a
 demo practice.
 
+## Deploying
+
+The app deploys to **Vercel** as an ordinary Next.js app — no adapter, no build
+flags, no `output` setting. Import the repository, then set two environment
+variables under *Settings → Environment Variables* for every environment you
+want to build:
+
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | A PostgreSQL connection string. Use a **pooled** endpoint — serverless functions open a connection per instance. |
+| `SESSION_SECRET` | 32 random bytes; generate it with the command above. Rotating it signs everyone out. |
+
+Neither is read at import time, so the build succeeds without a database — which
+also means a missing variable surfaces on the first request rather than in the
+build log. If pages throw `DATABASE_URL is not set` after a green deploy, the
+variable is missing from that environment, not from the code.
+
+Create the schema before the first request, from your own machine against the
+same database:
+
+```bash
+DATABASE_URL="<the connection string>" npm run db:migrate
+```
+
+Set `NEXT_PUBLIC_CLINIC_TIMEZONE` too if the clinic is not in `Asia/Manila`; it
+is inlined at build time, so changing it needs a redeploy.
+
 ## Scripts
 
 | Script | What it does |
