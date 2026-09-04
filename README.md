@@ -39,7 +39,7 @@ Generate a session secret with:
 node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 ```
 
-The seed creates a demo doctor — **doctor@medikonek.test** / **medikonek-demo** —
+The seed creates a demo doctor — **doctor@medikonek.com** / **password** —
 with two households, seven patients, seventeen appointments spread across the
 month and a few past encounters.
 Delete it before going anywhere near real data.
