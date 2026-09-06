@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { AppointmentStatus } from "@/lib/enums";
 import { requireDoctor } from "@/lib/auth";
-import { orm } from "@/src/prisma/db";
+import { db, orm } from "@/src/prisma/db";
 import {
   clinicDayRange,
   fromDateTimeLocalValue,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/datetime";
 import { newId } from "@/lib/ids";
 import { SERVICE_MINUTES } from "@/lib/domain";
-import { checkBookingRules, minuteOfDay, occupiesSlot, overlaps } from "@/lib/scheduling";
+import { checkBookingRules, formatSpan, minuteOfDay, occupiesSlot, overlaps } from "@/lib/scheduling";
 import { appointmentSchema, toFieldErrors, type FormState } from "@/lib/validation";
 
 async function assertOwnsPatient(doctorId: string, patientId: string) {
@@ -50,7 +50,7 @@ async function resolveBooking(
   doctorId: string,
   data: ReturnType<typeof appointmentSchema.parse>,
   ignoreAppointmentId?: string,
-): Promise<{ error: FormState } | { data: AppointmentScalars }> {
+): Promise<{ error: FormState } | { data: AppointmentScalars; scheduledAt: Date; durationMinutes: number }> {
   const { patientId, date, time, service, previousAppointmentId, type, ...rest } = data;
 
   if (!(await assertOwnsPatient(doctorId, patientId))) {
@@ -75,29 +75,8 @@ async function resolveBooking(
     };
   }
 
-  // Overlap is checked against the whole clinic day, not just nearby rows.
-  const { start, end } = clinicDayRange(scheduledAt);
-  let sameDayQuery = orm.Appointment
-    .select("id", "scheduledAt", "durationMinutes", "status")
-    .where((a) => a.doctorId.eq(doctorId))
-    .where((a) => a.scheduledAt.gte(instantToDb(start)))
-    .where((a) => a.scheduledAt.lt(instantToDb(end)));
-  if (ignoreAppointmentId) {
-    sameDayQuery = sameDayQuery.where((a) => a.id.neq(ignoreAppointmentId));
-  }
-  const sameDay = await sameDayQuery.all();
-
-  const busy = sameDay
-    .filter((a) => occupiesSlot(a.status))
-    .map((a) => {
-      const startMinute = minuteOfDay(instantFromDb(a.scheduledAt));
-      return { start: startMinute, end: startMinute + a.durationMinutes };
-    });
-
-  if (overlaps(minuteOfDay(scheduledAt), durationMinutes, busy)) {
-    const clash = "That slot was taken while you were booking. Pick another time.";
-    return { error: { message: clash, fieldErrors: { time: [clash] } } };
-  }
+  // The overlap check does NOT happen here. It has to run inside the same
+  // transaction as the write, under a lock — see `findClash`.
 
   // Only chain to a previous visit that is this doctor's and this patient's.
   let previousId: string | null = null;
@@ -118,6 +97,8 @@ async function resolveBooking(
   }
 
   return {
+    scheduledAt,
+    durationMinutes,
     data: {
       ...rest,
       patientId,
@@ -130,6 +111,80 @@ async function resolveBooking(
   };
 }
 
+/** A transaction context, as `db.transaction` hands it over. */
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Serialises every booking for one doctor.
+ *
+ * Checking availability and then inserting are two statements; without this
+ * two concurrent requests both see the slot free and both write. Taking a row
+ * lock on the doctor makes the second request wait for the first to commit, so
+ * its re-check sees the appointment the first one just made. The lock is held
+ * until the transaction ends — that is what `FOR UPDATE` gives us.
+ *
+ * A database-level exclusion constraint over a time range would be stronger
+ * still, because it would bind writers that never take this lock. Prisma 8's
+ * contract cannot express `EXCLUDE USING gist` today, so the guarantee lives
+ * here instead: every write path for appointments must go through this.
+ */
+async function lockDoctorSchedule(tx: Tx, doctorId: string) {
+  // No rows are wanted — only the lock the statement takes. `affectedCount`
+  // avoids having to name a codec for a column we would throw away.
+  const plan = db.raw.sql`SELECT id FROM "Doctor" WHERE id = ${doctorId} FOR UPDATE`
+    .affectedCount()
+    .build();
+  await tx.execute(plan as never);
+}
+
+/**
+ * The first existing appointment the proposed one would overlap, or null.
+ *
+ * Overlap is `newStart < existingEnd AND newEnd > existingStart` — identical
+ * start times are only the most obvious case of it. Cancelled and no-show
+ * visits do not hold their time (see `occupiesSlot`), so their slots are free
+ * to rebook.
+ */
+async function findClash(
+  tx: Tx,
+  doctorId: string,
+  scheduledAt: Date,
+  durationMinutes: number,
+  ignoreAppointmentId?: string,
+) {
+  const { start, end } = clinicDayRange(scheduledAt);
+  let query = tx.orm.public.Appointment
+    .select("id", "scheduledAt", "durationMinutes", "status")
+    .include("patient", (p) => p.select("firstName", "middleName", "lastName"))
+    .where((a) => a.doctorId.eq(doctorId))
+    .where((a) => a.scheduledAt.gte(instantToDb(start)))
+    .where((a) => a.scheduledAt.lt(instantToDb(end)));
+  if (ignoreAppointmentId) {
+    query = query.where((a) => a.id.neq(ignoreAppointmentId));
+  }
+
+  const proposedStart = minuteOfDay(scheduledAt);
+  for (const existing of await query.all()) {
+    if (!occupiesSlot(existing.status)) continue;
+    const existingStart = minuteOfDay(instantFromDb(existing.scheduledAt));
+    if (
+      overlaps(proposedStart, durationMinutes, [
+        { start: existingStart, end: existingStart + existing.durationMinutes },
+      ])
+    ) {
+      return { ...existing, startMinute: existingStart };
+    }
+  }
+  return null;
+}
+
+/** The message a losing racer sees. Names the time so it is actionable. */
+function clashMessage(clash: { startMinute: number; durationMinutes: number }): FormState {
+  const span = formatSpan(clash.startMinute, clash.durationMinutes);
+  const message = `That time is no longer free — ${span} is already booked. Pick another slot.`;
+  return { message, fieldErrors: { time: [message] } };
+}
+
 export async function createAppointment(_prev: FormState, formData: FormData): Promise<FormState> {
   const doctor = await requireDoctor();
   const parsed = appointmentSchema.safeParse(Object.fromEntries(formData));
@@ -138,28 +193,44 @@ export async function createAppointment(_prev: FormState, formData: FormData): P
   const resolved = await resolveBooking(doctor.id, parsed.data);
   if ("error" in resolved) return resolved.error;
 
-  const now = instantToDb(new Date());
-  const appointment = await orm.Appointment.select("id", "patientId").create({
-    ...resolved.data,
-    id: newId(),
-    doctorId: doctor.id,
-    createdAt: now,
-    updatedAt: now,
+  const followUpFor = String(formData.get("followUpFor") ?? "");
+
+  // Availability is re-checked here, inside the lock, rather than trusting the
+  // check the form did: between rendering the slot list and this write, anyone
+  // could have taken it.
+  const outcome = await db.transaction(async (tx) => {
+    await lockDoctorSchedule(tx, doctor.id);
+
+    const clash = await findClash(tx, doctor.id, resolved.scheduledAt, resolved.durationMinutes);
+    if (clash) return { clash, created: null };
+
+    const now = instantToDb(new Date());
+    const created = await tx.orm.public.Appointment.select("id", "patientId").create({
+      ...resolved.data,
+      id: newId(),
+      doctorId: doctor.id,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Booked to satisfy an earlier visit's follow-up: link it so the record
+    // stops showing as due. Scoped to this doctor and patient, and only onto a
+    // record that has not already been satisfied.
+    if (followUpFor) {
+      await tx.orm.public.MedicalRecord
+        .where((r) => r.id.eq(followUpFor))
+        .where((r) => r.doctorId.eq(doctor.id))
+        .where((r) => r.patientId.eq(created.patientId))
+        .where((r) => r.followUpAppointmentId.isNull())
+        .update({ followUpAppointmentId: created.id, updatedAt: now });
+    }
+
+    return { clash: null, created };
   });
 
-  // Booked to satisfy an earlier visit's follow-up: link it so the record stops
-  // showing as due. Scoped to this doctor and patient, and only onto a record
-  // that has not already been satisfied.
-  const followUpFor = String(formData.get("followUpFor") ?? "");
-  if (followUpFor) {
-    await orm.MedicalRecord
-      .where((r) => r.id.eq(followUpFor))
-      .where((r) => r.doctorId.eq(doctor.id))
-      .where((r) => r.patientId.eq(appointment.patientId))
-      .where((r) => r.followUpAppointmentId.isNull())
-      .update({ followUpAppointmentId: appointment.id, updatedAt: instantToDb(new Date()) });
-    revalidatePath(`/records/${followUpFor}`);
-  }
+  if (outcome.clash) return clashMessage(outcome.clash);
+  const appointment = outcome.created;
+  if (followUpFor) revalidatePath(`/records/${followUpFor}`);
 
   revalidatePath("/appointments");
   revalidatePath("/calendar");
@@ -187,9 +258,27 @@ export async function updateAppointment(
   const resolved = await resolveBooking(doctor.id, parsed.data, appointmentId);
   if ("error" in resolved) return resolved.error;
 
-  await orm.Appointment
-    .where((a) => a.id.eq(appointmentId))
-    .update({ ...resolved.data, updatedAt: instantToDb(new Date()) });
+  // Rescheduling races the same way a new booking does, and a service change
+  // can lengthen the visit into a neighbour, so the same locked re-check applies.
+  const outcome = await db.transaction(async (tx) => {
+    await lockDoctorSchedule(tx, doctor.id);
+
+    const clash = await findClash(
+      tx,
+      doctor.id,
+      resolved.scheduledAt,
+      resolved.durationMinutes,
+      appointmentId,
+    );
+    if (clash) return { clash };
+
+    await tx.orm.public.Appointment
+      .where((a) => a.id.eq(appointmentId))
+      .update({ ...resolved.data, updatedAt: instantToDb(new Date()) });
+    return { clash: null };
+  });
+
+  if (outcome.clash) return clashMessage(outcome.clash);
 
   revalidatePath("/appointments");
   revalidatePath("/calendar");

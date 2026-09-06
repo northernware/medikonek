@@ -45,9 +45,15 @@ export function latestBookableDay(now = new Date()) {
   return addDays(dayKey(now), MAX_LEAD_DAYS);
 }
 
-/** Statuses that hold a slot. A cancelled visit frees its time up again. */
+/**
+ * Statuses that hold a slot.
+ *
+ * A cancelled visit frees its time, and so does a no-show: the patient did not
+ * come, so the time is available to give to someone else. Both remain in the
+ * record — freeing the slot is about availability, not about forgetting.
+ */
 export function occupiesSlot(status: AppointmentStatus) {
-  return status !== "CANCELLED";
+  return status !== "CANCELLED" && status !== "NO_SHOW";
 }
 
 export type BusyInterval = { start: number; end: number };
@@ -133,6 +139,11 @@ export function labelForMinute(m: number) {
   const suffix = hour24 < 12 ? "AM" : "PM";
   const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
   return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
+/** "9:00 AM to 9:30 AM" — for naming the booking a clash collided with. */
+export function formatSpan(startMinute: number, durationMinutes: number) {
+  return `${labelForMinute(startMinute)} to ${labelForMinute(startMinute + durationMinutes)}`;
 }
 
 /** Timezone note for the UI, so "8:00 AM" is never ambiguous. */
