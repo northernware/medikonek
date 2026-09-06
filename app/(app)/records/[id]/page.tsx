@@ -2,14 +2,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteMedicalRecord } from "@/app/actions/records";
+import { closeFollowUp, reopenFollowUp } from "@/app/actions/records";
+import {
+  followUpState,
+  needsAction,
+  FOLLOW_UP_LABELS,
+  FOLLOW_UP_TONE,
+  RETURNED_BY_LABELS,
+} from "@/lib/follow-up";
 import { requireDoctor } from "@/lib/auth";
 import { orm } from "@/src/prisma/db";
-import { calendarDateFromDb, instantFromDb } from "@/lib/datetime";
+import { calendarDateFromDb, formatDate, instantFromDb } from "@/lib/datetime";
 import { formatCalendarDate, formatDateTime, toDateInputValue } from "@/lib/datetime";
 import { ageFrom, bloodPressure, bmi, fullName, SEX_LABELS } from "@/lib/domain";
 import { AlertBanner, AllergyBanner } from "@/components/allergy-banner";
 import { DangerZone } from "@/components/danger-zone";
-import { buttonClass, Card, CardHeader, Detail, PageHeader, Prose } from "@/components/ui";
+import { Badge, Card, CardHeader, Detail, PageHeader, Prose, buttonClass } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Medical record" };
 
@@ -26,7 +34,7 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
         .include("household", (h) => h.select("id", "name")),
     )
     .include("appointment", (a) => a.select("id", "scheduledAt", "reason"))
-    .include("followUpAppointment", (a) => a.select("id", "scheduledAt"))
+    .include("followUpAppointment", (a) => a.select("id", "scheduledAt", "status"))
     .include("prescriptions", (rx) =>
       rx
         .select("id", "drugName", "dosage", "frequency", "duration", "instructions")
@@ -38,6 +46,13 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
   if (!record) notFound();
 
   const { patient } = record;
+
+  // Derived on read from the linked appointment's status — never stored.
+  const followUp = followUpState({
+    followUpDate: record.followUpDate ? calendarDateFromDb(record.followUpDate) : null,
+    followUpClosedAt: record.followUpClosedAt ? instantFromDb(record.followUpClosedAt) : null,
+    followUpAppointment: record.followUpAppointment,
+  });
   const visitDate = instantFromDb(record.visitDate);
   const vitals = [
     { label: "Temp", value: record.temperatureC, unit: "°C" },
@@ -104,24 +119,57 @@ export default async function RecordPage({ params }: PageProps<"/records/[id]">)
           <Detail
             label="Follow-up"
             value={
-              record.followUpAppointment ? (
-                <Link
-                  href={`/appointments/${record.followUpAppointment.id}`}
-                  className="text-accent-ink hover:underline"
-                >
-                  Booked for {formatDateTime(instantFromDb(record.followUpAppointment.scheduledAt))}
-                </Link>
-              ) : (
-                <span className="flex flex-wrap items-center gap-2">
-                  <span>Due {formatCalendarDate(calendarDateFromDb(record.followUpDate))} — not booked</span>
+              <span className="flex flex-wrap items-center gap-2">
+                <Badge tone={FOLLOW_UP_TONE[followUp.state]}>
+                  {FOLLOW_UP_LABELS[followUp.state]}
+                </Badge>
+                <span>{formatCalendarDate(calendarDateFromDb(record.followUpDate))}</span>
+
+                {record.followUpAppointment ? (
                   <Link
-                    href={`/appointments/new?patientId=${patient.id}&service=FOLLOW_UP_CHECKUP&date=${toDateInputValue(calendarDateFromDb(record.followUpDate))}&followUpFor=${record.id}`}
-                    className={buttonClass("secondary")}
+                    href={`/appointments/${record.followUpAppointment.id}`}
+                    className="text-accent-ink hover:underline"
                   >
-                    Book follow-up
+                    {formatDateTime(instantFromDb(record.followUpAppointment.scheduledAt))}
                   </Link>
-                </span>
-              )
+                ) : null}
+
+                {followUp.returnedBy ? (
+                  <span className="text-warn-ink">
+                    back in the queue — {RETURNED_BY_LABELS[followUp.returnedBy]}
+                  </span>
+                ) : null}
+
+                {record.followUpClosedAt ? (
+                  <>
+                    <span className="text-ink-faint">
+                      closed {formatDate(instantFromDb(record.followUpClosedAt))}
+                      {record.followUpClosedReason ? ` — ${record.followUpClosedReason}` : ""}
+                    </span>
+                    <form action={reopenFollowUp.bind(null, record.id)}>
+                      <button className={buttonClass("ghost")}>Reopen</button>
+                    </form>
+                  </>
+                ) : needsAction(followUp.state) ? (
+                  <>
+                    <Link
+                      href={`/appointments/new?patientId=${patient.id}&service=FOLLOW_UP_CHECKUP&date=${toDateInputValue(calendarDateFromDb(record.followUpDate))}&followUpFor=${record.id}`}
+                      className={buttonClass("secondary")}
+                    >
+                      Book follow-up
+                    </Link>
+                    {/* The only way out of the queue without a completed visit. */}
+                    <form action={closeFollowUp.bind(null, record.id)} className="flex gap-1.5">
+                      <input
+                        name="reason"
+                        placeholder="Reason no longer needed"
+                        className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs"
+                      />
+                      <button className={buttonClass("ghost")}>No longer required</button>
+                    </form>
+                  </>
+                ) : null}
+              </span>
             }
           />
         ) : null}

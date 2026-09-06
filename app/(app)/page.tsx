@@ -3,6 +3,7 @@ import { setAppointmentStatus } from "@/app/actions/appointments";
 import { requireDoctor } from "@/lib/auth";
 import { orm } from "@/src/prisma/db";
 import { followUpsDue } from "@/lib/queries";
+import { RETURNED_BY_LABELS } from "@/lib/follow-up";
 import {
   clinicDayRange,
   formatCalendarDate,
@@ -245,6 +246,13 @@ export default async function DashboardPage() {
                           </span>
                           {overdue ? (
                             <span className="block font-sans text-[11px] text-danger-ink">Overdue</span>
+                          ) : null}
+                          {r.followUpAppointment ? (
+                            <span className="block font-sans text-[11px] text-warn-ink">
+                              {RETURNED_BY_LABELS[
+                                r.followUpAppointment.status as "CANCELLED" | "NO_SHOW"
+                              ] ?? "returned"}
+                            </span>
                           ) : null}
                         </span>
                         <Link href={`/records/${r.id}`} className="min-w-0 flex-1">

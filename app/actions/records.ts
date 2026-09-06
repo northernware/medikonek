@@ -207,3 +207,58 @@ export async function deleteMedicalRecord(formData: FormData) {
   revalidatePath(`/patients/${record.patientId}`);
   redirect(`/patients/${record.patientId}`);
 }
+
+/**
+ * Records that a follow-up is no longer needed.
+ *
+ * This is the only way a live follow-up leaves the queue without a completed
+ * visit, and it is a decision rather than an inference — hence the reason, and
+ * hence storing who made it.
+ */
+export async function closeFollowUp(recordId: string, formData: FormData): Promise<void> {
+  const doctor = await requireDoctor();
+  const reason = String(formData.get("reason") ?? "").trim();
+
+  const owned = await orm.MedicalRecord
+    .select("id", "patientId")
+    .where((r) => r.id.eq(recordId))
+    .where((r) => r.doctorId.eq(doctor.id))
+    .where((r) => r.followUpDate.isNotNull())
+    .first();
+  if (!owned) return;
+
+  const now = instantToDb(new Date());
+  await orm.MedicalRecord.where((r) => r.id.eq(recordId)).update({
+    followUpClosedAt: now,
+    followUpClosedReason: reason || null,
+    followUpClosedById: doctor.id,
+    updatedAt: now,
+  });
+
+  revalidatePath(`/records/${recordId}`);
+  revalidatePath(`/patients/${owned.patientId}`);
+  revalidatePath("/");
+}
+
+/** Puts a closed follow-up back into the queue. */
+export async function reopenFollowUp(recordId: string): Promise<void> {
+  const doctor = await requireDoctor();
+  const owned = await orm.MedicalRecord
+    .select("id", "patientId")
+    .where((r) => r.id.eq(recordId))
+    .where((r) => r.doctorId.eq(doctor.id))
+    .first();
+  if (!owned) return;
+
+  const now = instantToDb(new Date());
+  await orm.MedicalRecord.where((r) => r.id.eq(recordId)).update({
+    followUpClosedAt: null,
+    followUpClosedReason: null,
+    followUpClosedById: null,
+    updatedAt: now,
+  });
+
+  revalidatePath(`/records/${recordId}`);
+  revalidatePath(`/patients/${owned.patientId}`);
+  revalidatePath("/");
+}
