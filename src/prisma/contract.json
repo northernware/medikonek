@@ -446,6 +446,21 @@
                   "namespace": "public"
                 }
               },
+              "followUpsClosed": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "followUpClosedById"
+                  ]
+                },
+                "to": {
+                  "model": "MedicalRecord",
+                  "namespace": "public"
+                }
+              },
               "households": {
                 "cardinality": "1:N",
                 "on": {
@@ -718,6 +733,30 @@
                   "kind": "scalar"
                 }
               },
+              "followUpClosedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-string@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "followUpClosedById": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "followUpClosedReason": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "followUpDate": {
                 "nullable": true,
                 "type": {
@@ -883,6 +922,21 @@
                   "namespace": "public"
                 }
               },
+              "followUpClosedBy": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "followUpClosedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Doctor",
+                  "namespace": "public"
+                }
+              },
               "patient": {
                 "cardinality": "N:1",
                 "on": {
@@ -936,6 +990,15 @@
                 },
                 "followUpAppointmentId": {
                   "column": "followUpAppointmentId"
+                },
+                "followUpClosedAt": {
+                  "column": "followUpClosedAt"
+                },
+                "followUpClosedById": {
+                  "column": "followUpClosedById"
+                },
+                "followUpClosedReason": {
+                  "column": "followUpClosedReason"
                 },
                 "followUpDate": {
                   "column": "followUpDate"
@@ -2474,6 +2537,24 @@
                   "nativeType": "text",
                   "nullable": true
                 },
+                "followUpClosedAt": {
+                  "codecId": "pg/timestamp-string@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "followUpClosedById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "followUpClosedReason": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "followUpDate": {
                   "codecId": "pg/date-string@1",
                   "nativeType": "date",
@@ -2624,6 +2705,25 @@
                   }
                 },
                 {
+                  "name": "MedicalRecord_followUpClosedById_fkey",
+                  "onDelete": "setNull",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "followUpClosedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "MedicalRecord"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Doctor"
+                  }
+                },
+                {
                   "name": "MedicalRecord_patientId_fkey",
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -2649,6 +2749,13 @@
                     "doctorId"
                   ],
                   "name": "MedicalRecord_doctorId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "followUpClosedById"
+                  ],
+                  "name": "MedicalRecord_followUpClosedById_idx",
                   "unique": false
                 },
                 {
@@ -3472,7 +3579,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "a6c2e9f7ac0a657c8c9685a75b11eaf2bdb7eea2b9ab55e84ae7b70ae444bd64"
+    "storageHash": "7309f079d5104d2cfb494e06e14c294e90df397fe2091da54c63ee6924505dba"
   },
   "capabilities": {
     "postgres": {

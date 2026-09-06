@@ -14,7 +14,8 @@ namespace public {
     updatedAt      TimestampString(3)
     appointments   Appointment[]
     households     Household[]
-    medicalRecords MedicalRecord[]
+    medicalRecords MedicalRecord[] @relation(name: "MedicalRecord_doctorId_fkey")
+    followUpsClosed MedicalRecord[] @relation(name: "MedicalRecord_followUpClosedById_fkey")
 
     @@index([email], map: "Doctor_email_key", unique: true)
 
@@ -138,15 +139,25 @@ namespace public {
     updatedAt               TimestampString(3)
     followUpAppointmentId   String?
     physicalExamination     String?
+
+    // Closing a follow-up is a decision someone makes, so it is recorded rather
+    // than inferred. Everything else about follow-up state is derived from the
+    // linked appointment's status — see `followUpState` in lib/follow-up.ts.
+    followUpClosedAt        TimestampString(3)?
+    followUpClosedReason    String?
+    followUpClosedById      String?
+
     prescriptions           Prescription[]
     appointment             Appointment?   @relation(name: "MedicalRecord_appointmentId_fkey", fields: [appointmentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "MedicalRecord_appointmentId_fkey")
-    doctor                  Doctor         @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "MedicalRecord_doctorId_fkey")
+    doctor                  Doctor         @relation(name: "MedicalRecord_doctorId_fkey", fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "MedicalRecord_doctorId_fkey")
     followUpAppointment     Appointment?   @relation(name: "MedicalRecord_followUpAppointmentId_fkey", fields: [followUpAppointmentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "MedicalRecord_followUpAppointmentId_fkey")
+    followUpClosedBy        Doctor?        @relation(name: "MedicalRecord_followUpClosedById_fkey", fields: [followUpClosedById], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "MedicalRecord_followUpClosedById_fkey")
     patient                 Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "MedicalRecord_patientId_fkey", index: false)
 
     @@unique([appointmentId], map: "MedicalRecord_appointmentId_key")
     @@unique([followUpAppointmentId], map: "MedicalRecord_followUpAppointmentId_key")
     @@index([doctorId], map: "MedicalRecord_doctorId_idx")
+    @@index([followUpClosedById], map: "MedicalRecord_followUpClosedById_idx")
     @@index([patientId, visitDate], map: "MedicalRecord_patientId_visitDate_idx")
 
     @@map("MedicalRecord")

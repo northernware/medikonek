@@ -129,15 +129,34 @@ export async function bookingFormData(doctorId: string, excludeAppointmentId?: s
 export async function followUpsDue(doctorId: string, horizonDays = 14) {
   const horizon = new Date();
   horizon.setDate(horizon.getDate() + horizonDays);
+  const by = calendarDateToDb(horizon);
 
-  return orm.MedicalRecord
-    .select("id", "followUpDate", "visitDate", "chiefComplaint")
-    .include("patient", (p) => p.select("id", "firstName", "middleName", "lastName"))
-    .where((r) => r.doctorId.eq(doctorId))
-    .where((r) => r.followUpAppointmentId.isNull())
-    .where((r) => r.followUpDate.isNotNull())
-    .where((r) => r.followUpDate.lte(calendarDateToDb(horizon)))
-    .orderBy((r) => r.followUpDate.asc())
-    .limit(25)
-    .all();
+  const shape = () =>
+    orm.MedicalRecord
+      .select("id", "followUpDate", "followUpClosedAt", "visitDate", "chiefComplaint")
+      .include("patient", (p) => p.select("id", "firstName", "middleName", "lastName"))
+      .include("followUpAppointment", (a) => a.select("id", "status", "scheduledAt"))
+      .where((r) => r.doctorId.eq(doctorId))
+      .where((r) => r.followUpDate.isNotNull())
+      .where((r) => r.followUpDate.lte(by))
+      .where((r) => r.followUpClosedAt.isNull());
+
+  // Two passes rather than one `OR`: a follow-up is outstanding either because
+  // nothing was ever booked, or because what was booked fell through. The
+  // combinators that would express this as a single predicate are not on the
+  // public façade yet, and two indexed reads are cheaper than being clever.
+  const [neverBooked, fellThrough] = await Promise.all([
+    shape()
+      .where((r) => r.followUpAppointmentId.isNull())
+      .orderBy((r) => r.followUpDate.asc())
+      .all(),
+    shape()
+      .where((r) => r.followUpAppointment.some((a) => a.status.in(["CANCELLED", "NO_SHOW"])))
+      .orderBy((r) => r.followUpDate.asc())
+      .all(),
+  ]);
+
+  return [...neverBooked, ...fellThrough].sort((a, b) =>
+    (a.followUpDate ?? "").localeCompare(b.followUpDate ?? ""),
+  );
 }
