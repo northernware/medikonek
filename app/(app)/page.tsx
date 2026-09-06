@@ -24,6 +24,11 @@ import {
 import { appointmentListQuery, toAppointmentListItem } from "@/lib/queries";
 import { Badge, Card, EmptyState, PageHeader, SectionTitle, Stat, StatStrip, buttonClass } from "@/components/ui";
 
+/** Whole minutes since arrival, floored — the number a receptionist reads. */
+function waitedMinutes(arrivedAt: Date, now: Date) {
+  return Math.max(0, Math.floor((now.getTime() - arrivedAt.getTime()) / 60_000));
+}
+
 export default async function DashboardPage() {
   const doctor = await requireDoctor();
   const now = new Date();
@@ -39,7 +44,7 @@ export default async function DashboardPage() {
         .all(),
       // The waiting room: checked in, wherever that appointment sits in time.
       orm.Appointment
-        .select("id", "scheduledAt", "service", "reason")
+        .select("id", "scheduledAt", "service", "reason", "arrivedAt", "source")
         .include("patient", (p) => p.select("id", "firstName", "middleName", "lastName"))
         .include("medicalRecord", (r) => r.select("id"))
         .where((a) => a.doctorId.eq(doctor.id))
@@ -73,7 +78,15 @@ export default async function DashboardPage() {
   // Prisma 8 reads temporal columns as text; the UI works in `Date`, so each list
   // is converted once here rather than at every call site below.
   const todays = todaysRows.map(toAppointmentListItem);
-  const waiting = waitingRows.map((a) => ({ ...a, scheduledAt: instantFromDb(a.scheduledAt) }));
+  const waiting = waitingRows
+    .map((a) => ({
+      ...a,
+      scheduledAt: instantFromDb(a.scheduledAt),
+      arrivedAt: a.arrivedAt ? instantFromDb(a.arrivedAt) : null,
+    }))
+    // Ordered by arrival, not by scheduled time — a walk-in has no meaningful
+    // scheduled time, and the queue is whoever got here first.
+    .sort((a, b) => (a.arrivedAt?.getTime() ?? 0) - (b.arrivedAt?.getTime() ?? 0));
   const missed = missedRows.map((a) => ({ ...a, scheduledAt: instantFromDb(a.scheduledAt) }));
   const dueFollowUps = dueFollowUpRows.map((r) => ({
     ...r,
@@ -93,7 +106,13 @@ export default async function DashboardPage() {
         subtitle={formatDayHeading(now)}
         actions={
           <>
-            <Link href="/appointments/new" className={buttonClass("primary")}>
+            <Link
+              href="/appointments/new?source=WALK_IN"
+              className={buttonClass("primary")}
+            >
+              Register walk-in
+            </Link>
+            <Link href="/appointments/new" className={buttonClass("secondary")}>
               Book appointment
             </Link>
             <Link href="/patients/new" className={buttonClass("secondary")}>
@@ -135,7 +154,12 @@ export default async function DashboardPage() {
                 {waiting.map((a) => (
                   <div key={a.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
                     <span className="nums w-16 shrink-0 text-[13px] font-medium">
-                      {formatTime(a.scheduledAt)}
+                      {formatTime(a.arrivedAt ?? a.scheduledAt)}
+                      {a.arrivedAt ? (
+                        <span className="tabular block font-sans text-[11px] font-normal text-ink-muted">
+                          waiting {waitedMinutes(a.arrivedAt, now)}m
+                        </span>
+                      ) : null}
                       {a.scheduledAt < today.start ? (
                         <span className="tabular block font-sans text-[11px] font-normal text-warn-ink">
                           {formatDate(a.scheduledAt)}

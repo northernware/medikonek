@@ -24,7 +24,7 @@ export default async function EditAppointmentPage({ params }: PageProps<"/appoin
   const scheduledAt = instantFromDb(appointment.scheduledAt);
 
   // Excluding this booking is what lets its own slot read as free.
-  const { patients, busyByDay, followUps, schedule, window } = await bookingFormData(doctor.id, appointment.id);
+  const { patients, busyByDay, followUps, schedule, window, walkInWindow } = await bookingFormData(doctor.id, appointment.id);
 
   return (
     <div className="space-y-6">
@@ -36,6 +36,7 @@ export default async function EditAppointmentPage({ params }: PageProps<"/appoin
           busyByDay={busyByDay}
           followUps={followUps}
           schedule={schedule}
+          walkInWindow={walkInWindow}
           window={window}
           staffFields
           defaults={{

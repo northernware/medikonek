@@ -216,10 +216,16 @@ export async function createAppointment(_prev: FormState, formData: FormData): P
     if (clash) return { clash, created: null };
 
     const now = instantToDb(new Date());
+
+    // A walk-in is already standing at the desk, so it joins the queue on
+    // arrival rather than waiting for someone to check it in afterwards.
+    const walkIn = resolved.data.source === "WALK_IN";
+
     const created = await tx.orm.public.Appointment.select("id", "patientId").create({
       ...resolved.data,
       id: newId(),
       doctorId: doctor.id,
+      ...(walkIn ? { status: "CHECKED_IN" as const, arrivedAt: now } : {}),
       createdAt: now,
       updatedAt: now,
     });
@@ -307,10 +313,26 @@ export async function setAppointmentStatus(formData: FormData) {
 
   if (!appointmentId || !(raw in AppointmentStatus)) return;
 
+  const now = instantToDb(new Date());
+  const status = raw as AppointmentStatus;
+
+  // Arrival is stamped the first time someone is checked in and then left
+  // alone, so a correction elsewhere in the queue does not restart the clock.
+  const existing = await orm.Appointment
+    .select("arrivedAt")
+    .where((a) => a.id.eq(appointmentId))
+    .where((a) => a.doctorId.eq(doctor.id))
+    .first();
+  if (!existing) return;
+
   await orm.Appointment
     .where((a) => a.id.eq(appointmentId))
     .where((a) => a.doctorId.eq(doctor.id))
-    .update({ status: raw as AppointmentStatus, updatedAt: instantToDb(new Date()) });
+    .update({
+      status,
+      ...(status === "CHECKED_IN" && !existing.arrivedAt ? { arrivedAt: now } : {}),
+      updatedAt: now,
+    });
 
   revalidatePath("/appointments");
   revalidatePath("/calendar");

@@ -35,6 +35,7 @@ export function AppointmentForm({
   followUps,
   schedule,
   window: bookingWindow,
+  walkInWindow,
   submitLabel,
   cancelHref,
   staffFields = false,
@@ -49,6 +50,8 @@ export function AppointmentForm({
   schedule: Schedule;
   /** Bookable date range, decided by the server so both clocks agree. */
   window: { earliest: string; latest: string };
+  /** The same range with the lead time lifted, for walk-ins. */
+  walkInWindow: { earliest: string; latest: string };
   submitLabel: string;
   cancelHref: string;
   /** Reveals status, source, room and internal notes. */
@@ -61,6 +64,14 @@ export function AppointmentForm({
 
   const [patientId, setPatientId] = useState(defaults.patientId);
   const [service, setService] = useState(defaults.service);
+  const [source, setSource] = useState(defaults.source);
+
+  // Choosing "Walk-in" moves the form onto today's rules: the date input opens
+  // up to today and the slot list is built from today's bookings. The server
+  // applies the same exemption, keyed on the same field, so the form cannot
+  // offer a slot the action would then refuse.
+  const isWalkIn = source === "WALK_IN";
+  const activeWindow = isWalkIn ? walkInWindow : bookingWindow;
   const [date, setDate] = useState(defaults.date);
   const [time, setTime] = useState(defaults.time);
 
@@ -69,8 +80,8 @@ export function AppointmentForm({
   const duration = SERVICE_MINUTES[service as ServiceType] ?? 30;
 
   const slots = useMemo(
-    () => slotsForDay(date, duration, busyByDay[date] ?? [], bookingWindow, schedule),
-    [date, duration, busyByDay, bookingWindow, schedule],
+    () => slotsForDay(date, duration, busyByDay[date] ?? [], activeWindow, schedule),
+    [date, duration, busyByDay, activeWindow, schedule],
   );
 
   // When editing a visit that already sits outside the bookable window, its own
@@ -191,7 +202,10 @@ export function AppointmentForm({
         <div>
           <h2 className="text-sm font-semibold">Schedule</h2>
           <p className="text-sm text-ink-muted">
-            {describeWeek(schedule)}. Bookings open from {formatDayKeyFull(bookingWindow.earliest)}.
+            {describeWeek(schedule)}.{" "}
+            {isWalkIn
+              ? "Walk-ins may be booked today."
+              : `Bookings open from ${formatDayKeyFull(bookingWindow.earliest)}.`}
           </p>
         </div>
 
@@ -208,8 +222,8 @@ export function AppointmentForm({
               name="date"
               type="date"
               value={date}
-              min={bookingWindow.earliest}
-              max={bookingWindow.latest}
+              min={activeWindow.earliest}
+              max={activeWindow.latest}
               onChange={(e) => chooseDate(e.target.value)}
               required
               invalid={Boolean(err?.date)}
@@ -371,7 +385,18 @@ export function AppointmentForm({
               </Select>
             </Field>
             <Field label="Booking source" htmlFor="source" error={err?.source}>
-              <Select id="source" name="source" defaultValue={defaults.source}>
+              <Select
+                id="source"
+                name="source"
+                value={source}
+                onChange={(e) => {
+                  setSource(e.target.value);
+                  // A date that was legal for a scheduled booking may not be for
+                  // a walk-in, and the reverse; make them choose again.
+                  setDate("");
+                  setTime("");
+                }}
+              >
                 {Object.entries(BOOKING_SOURCE_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
@@ -396,7 +421,7 @@ export function AppointmentForm({
       ) : (
         <>
           <input type="hidden" name="status" value={defaults.status} />
-          <input type="hidden" name="source" value={defaults.source} />
+          <input type="hidden" name="source" value={source} />
         </>
       )}
 

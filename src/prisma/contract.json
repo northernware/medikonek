@@ -75,6 +75,16 @@
         "models": {
           "Appointment": {
             "fields": {
+              "arrivedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-string@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -323,6 +333,9 @@
             },
             "storage": {
               "fields": {
+                "arrivedAt": {
+                  "column": "arrivedAt"
+                },
                 "createdAt": {
                   "column": "createdAt"
                 },
@@ -2558,6 +2571,14 @@
           "table": {
             "Appointment": {
               "columns": {
+                "arrivedAt": {
+                  "codecId": "pg/timestamp-string@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "createdAt": {
                   "codecId": "pg/timestamp-string@1",
                   "default": {
@@ -4550,7 +4571,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "11f9e4f973d04accb96a4060c2717d7f9246a489cd71734e7e62df7f280d86fa"
+    "storageHash": "142b1021ecbc1dc68d2d50077fcab5a38ca3be6580f2614641a2b9c725a0c2bf"
   },
   "capabilities": {
     "postgres": {

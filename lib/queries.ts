@@ -74,7 +74,11 @@ export async function bookingFormData(doctorId: string, excludeAppointmentId?: s
   const earliest = earliestBookableDay(schedule, now);
   const latest = latestBookableDay(schedule, now);
 
-  const windowStart = instantToDb(startOfClinicDay(earliest));
+  // A walk-in may be booked today, so today's bookings have to be loaded even
+  // though a scheduled booking could not land there. The busy window therefore
+  // starts at today, not at the earliest bookable day.
+  const walkInEarliest = dayKey(now);
+  const windowStart = instantToDb(startOfClinicDay(walkInEarliest));
   const windowEnd = instantToDb(startOfClinicDay(addDays(latest, 1)));
 
   let bookedQuery = orm.Appointment
@@ -117,7 +121,15 @@ export async function bookingFormData(doctorId: string, excludeAppointmentId?: s
     });
   }
 
-  return { patients, busyByDay, followUps, schedule, window: { earliest, latest } };
+  return {
+    patients,
+    busyByDay,
+    followUps,
+    schedule,
+    window: { earliest, latest },
+    // The same rules, with the lead time lifted — the patient is at the desk.
+    walkInWindow: { earliest: walkInEarliest, latest },
+  };
 }
 
 /**

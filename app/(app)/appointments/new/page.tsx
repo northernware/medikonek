@@ -37,8 +37,8 @@ function usableDate(
 
 export default async function NewAppointmentPage({ searchParams }: PageProps<"/appointments/new">) {
   const doctor = await requireDoctor();
-  const { patientId, date, service, followUpFor } = await searchParams;
-  const { patients, busyByDay, followUps, schedule, window } = await bookingFormData(doctor.id);
+  const { patientId, date, service, followUpFor, source } = await searchParams;
+  const { patients, busyByDay, followUps, schedule, window, walkInWindow } = await bookingFormData(doctor.id);
 
   if (patients.length === 0) {
     return (
@@ -71,6 +71,7 @@ export default async function NewAppointmentPage({ searchParams }: PageProps<"/a
           busyByDay={busyByDay}
           followUps={followUps}
           schedule={schedule}
+          walkInWindow={walkInWindow}
           window={window}
           staffFields
           defaults={{
@@ -85,8 +86,12 @@ export default async function NewAppointmentPage({ searchParams }: PageProps<"/a
             type: AppointmentType.IN_PERSON,
             priority: VisitPriority.ROUTINE,
             // Staff booking on the patient's behalf, so it is already agreed.
-            status: AppointmentStatus.CONFIRMED,
-            source: BookingSource.STAFF,
+            status:
+              source === "WALK_IN" ? AppointmentStatus.CHECKED_IN : AppointmentStatus.CONFIRMED,
+            // A "Register walk-in" link lands here already set to WALK_IN, which
+            // opens today's dates and slots without another click.
+            source:
+              source === "WALK_IN" ? BookingSource.WALK_IN : BookingSource.STAFF,
             reminderPreference: ReminderPreference.NONE,
             previousAppointmentId: "",
             room: "",

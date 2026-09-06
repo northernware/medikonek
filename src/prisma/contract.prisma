@@ -117,6 +117,10 @@ namespace public {
     room                       String?
     source                     pg.enum(BookingSource)      @default("STAFF")
     visitType                  pg.enum(AppointmentType)    @default("IN_PERSON") @map("type")
+    /// When the patient physically arrived. Set on check-in, and on a walk-in
+    /// at the moment it is registered — the queue is ordered by it, not by the
+    /// scheduled time, because a walk-in has no meaningful scheduled time.
+    arrivedAt                  TimestampString(3)?
     doctor                     Doctor                      @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Appointment_doctorId_fkey", index: false)
     patient                    Patient                     @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Appointment_patientId_fkey")
     previousAppointment        Appointment?                @relation(name: "Appointment_previousAppointmentId_fkey", fields: [previousAppointmentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Appointment_previousAppointmentId_fkey")
