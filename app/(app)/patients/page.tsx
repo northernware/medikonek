@@ -25,6 +25,7 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
       "sex",
       "relationship",
       "allergyStatus",
+      "patientNumber",
     )
     .include("allergies", (a) => a.select("id", "severity"))
     .include("household", (h) => h.select("id", "name"))
@@ -37,6 +38,7 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
       or(
         p.firstName.ilike(like),
         p.lastName.ilike(like),
+        p.patientNumber.ilike(like),
         p.household.some((h) => h.name.ilike(like)),
       ),
     );
@@ -66,7 +68,7 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
         }
       />
 
-      <SearchForm action="/patients" placeholder="Search by name or household" defaultValue={query} />
+      <SearchForm action="/patients" placeholder="Search by name, number or household" defaultValue={query} />
 
       <Card>
         {patients.length === 0 ? (

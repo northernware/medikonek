@@ -40,6 +40,10 @@
       "model": "PatientMedication",
       "namespace": "public"
     },
+    "PatientNumberCounter": {
+      "model": "PatientNumberCounter",
+      "namespace": "public"
+    },
     "Prescription": {
       "model": "Prescription",
       "namespace": "public"
@@ -1182,6 +1186,13 @@
                   "kind": "scalar"
                 }
               },
+              "patientNumber": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "relationship": {
                 "nullable": false,
                 "type": {
@@ -1384,6 +1395,9 @@
                 },
                 "middleName": {
                   "column": "middleName"
+                },
+                "patientNumber": {
+                  "column": "patientNumber"
                 },
                 "relationship": {
                   "column": "relationship"
@@ -1760,6 +1774,37 @@
               },
               "namespaceId": "public",
               "table": "PatientMedication"
+            }
+          },
+          "PatientNumberCounter": {
+            "fields": {
+              "lastUsed": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "year": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "lastUsed": {
+                  "column": "lastUsed"
+                },
+                "year": {
+                  "column": "year"
+                }
+              },
+              "namespaceId": "public",
+              "table": "PatientNumberCounter"
             }
           },
           "Prescription": {
@@ -2929,6 +2974,11 @@
                   "nativeType": "text",
                   "nullable": true
                 },
+                "patientNumber": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "relationship": {
                   "codecId": "pg/enum@1",
                   "default": {
@@ -3006,6 +3056,13 @@
                   ],
                   "name": "Patient_lastName_firstName_idx",
                   "unique": false
+                },
+                {
+                  "columns": [
+                    "patientNumber"
+                  ],
+                  "name": "Patient_patientNumber_key",
+                  "unique": true
                 }
               ],
               "primaryKey": {
@@ -3369,6 +3426,33 @@
               },
               "uniques": []
             },
+            "PatientNumberCounter": {
+              "columns": {
+                "lastUsed": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "year": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "year"
+                ],
+                "name": "PatientNumberCounter_pkey"
+              },
+              "uniques": []
+            },
             "Prescription": {
               "columns": {
                 "createdAt": {
@@ -3579,7 +3663,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "7309f079d5104d2cfb494e06e14c294e90df397fe2091da54c63ee6924505dba"
+    "storageHash": "f8b2427599ef891964c651e14b1e878de23e422963a287b4cb0b736b680357c5"
   },
   "capabilities": {
     "postgres": {

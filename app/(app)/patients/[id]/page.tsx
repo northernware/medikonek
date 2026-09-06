@@ -204,6 +204,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[id]"
           <AllergyBanner status={patient.allergyStatus} allergies={patient.allergies} />
       <Card className="p-4">
         <dl className="grid grid-cols-2 gap-x-4 gap-y-3.5">
+          <Detail label="Patient number" value={<span className="nums">{patient.patientNumber ?? "—"}</span>} />
           <Detail label="Date of birth" value={formatCalendarDate(calendarDateFromDb(patient.dateOfBirth))} />
           <Detail label="Blood type" value={BLOOD_TYPE_LABELS[patient.bloodType]} />
           <Detail label="Contact" value={patient.contactNumber ?? patient.household.contactNumber} />

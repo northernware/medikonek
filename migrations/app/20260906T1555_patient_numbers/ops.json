@@ -1,0 +1,122 @@
+[
+  {
+    "id": "table.PatientNumberCounter",
+    "label": "Create table \"PatientNumberCounter\"",
+    "summary": "Creates table \"PatientNumberCounter\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "PatientNumberCounter"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"PatientNumberCounter\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientNumberCounter\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"PatientNumberCounter\"",
+        "sql": "CREATE TABLE \"public\".\"PatientNumberCounter\" (\n  \"lastUsed\" int4 DEFAULT 0 NOT NULL,\n  \"year\" int4 NOT NULL,\n  CONSTRAINT \"PatientNumberCounter_pkey\" PRIMARY KEY (\"year\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"PatientNumberCounter\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PatientNumberCounter\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Patient.patientNumber",
+    "label": "Add column \"patientNumber\" to \"Patient\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "patientNumber",
+        "table": "Patient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"patientNumber\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Patient",
+          "patientNumber"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"patientNumber\"",
+        "sql": "ALTER TABLE \"public\".\"Patient\" ADD COLUMN \"patientNumber\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"patientNumber\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Patient",
+          "patientNumber"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Patient.Patient_patientNumber_key",
+    "label": "Create index \"Patient_patientNumber_key\" on \"Patient\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Patient_patientNumber_key",
+        "table": "Patient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Patient_patientNumber_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Patient_patientNumber_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Patient_patientNumber_key\"",
+        "sql": "CREATE UNIQUE INDEX \"Patient_patientNumber_key\" ON \"public\".\"Patient\" (\"patientNumber\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Patient_patientNumber_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Patient_patientNumber_key\""
+        ]
+      }
+    ]
+  }
+]

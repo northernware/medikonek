@@ -33,7 +33,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'f8b2427599ef891964c651e14b1e878de23e422963a287b4cb0b736b680357c5'>;
+  StorageHashBase<'3ed51443bed305e955f06388e1a5dc9ca9ba0ce12a86cdb5e97378f147c9548f'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -328,7 +328,7 @@ export type FieldOutputTypes = {
     };
     readonly Patient: {
       readonly id: CodecTypes['pg/text@1']['output'];
-      readonly patientNumber: CodecTypes['pg/text@1']['output'] | null;
+      readonly patientNumber: CodecTypes['pg/text@1']['output'];
       readonly householdId: CodecTypes['pg/text@1']['output'];
       readonly firstName: CodecTypes['pg/text@1']['output'];
       readonly middleName: CodecTypes['pg/text@1']['output'] | null;
@@ -488,7 +488,7 @@ export type FieldInputTypes = {
     };
     readonly Patient: {
       readonly id: CodecTypes['pg/text@1']['input'];
-      readonly patientNumber: CodecTypes['pg/text@1']['input'] | null;
+      readonly patientNumber: CodecTypes['pg/text@1']['input'];
       readonly householdId: CodecTypes['pg/text@1']['input'];
       readonly firstName: CodecTypes['pg/text@1']['input'];
       readonly middleName: CodecTypes['pg/text@1']['input'] | null;
@@ -664,7 +664,7 @@ export type StorageColumnTypes = {
       readonly lastName: CodecTypes['pg/text@1']['output'];
       readonly medicationStatus: 'RECORDED' | 'NONE_KNOWN' | 'UNKNOWN';
       readonly middleName: CodecTypes['pg/text@1']['output'] | null;
-      readonly patientNumber: CodecTypes['pg/text@1']['output'] | null;
+      readonly patientNumber: CodecTypes['pg/text@1']['output'];
       readonly relationship:
         'HEAD' | 'SPOUSE' | 'CHILD' | 'PARENT' | 'SIBLING' | 'GRANDPARENT' | 'OTHER';
       readonly sex: 'MALE' | 'FEMALE';
@@ -824,7 +824,7 @@ export type StorageColumnInputTypes = {
       readonly lastName: CodecTypes['pg/text@1']['input'];
       readonly medicationStatus: 'RECORDED' | 'NONE_KNOWN' | 'UNKNOWN';
       readonly middleName: CodecTypes['pg/text@1']['input'] | null;
-      readonly patientNumber: CodecTypes['pg/text@1']['input'] | null;
+      readonly patientNumber: CodecTypes['pg/text@1']['input'];
       readonly relationship:
         'HEAD' | 'SPOUSE' | 'CHILD' | 'PARENT' | 'SIBLING' | 'GRANDPARENT' | 'OTHER';
       readonly sex: 'MALE' | 'FEMALE';
@@ -1497,7 +1497,7 @@ type ContractBase = Omit<
                 readonly patientNumber: {
                   readonly nativeType: 'text';
                   readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
+                  readonly nullable: false;
                 };
                 readonly householdId: {
                   readonly nativeType: 'text';
@@ -2799,7 +2799,7 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly patientNumber: {
-                readonly nullable: true;
+                readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly householdId: {

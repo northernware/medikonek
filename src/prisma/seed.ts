@@ -84,6 +84,23 @@ type PatientSeed = Record<string, unknown> & {
  * as one literal per household and do the flattening themselves. Ids and audit
  * timestamps are the application's job now, so they are filled in here too.
  */
+/** The same per-year counter the app allocates from, so seeded numbers match. */
+async function nextPatientNumber() {
+  const year = new Date().getUTCFullYear();
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      db.raw.sql`INSERT INTO "PatientNumberCounter" ("year","lastUsed") VALUES (${year},0) ON CONFLICT ("year") DO NOTHING`
+        .affectedCount().build() as never,
+    );
+    await tx.execute(
+      db.raw.sql`UPDATE "PatientNumberCounter" SET "lastUsed"="lastUsed"+1 WHERE "year"=${year}`
+        .affectedCount().build() as never,
+    );
+  });
+  const counter = await orm.PatientNumberCounter.select("lastUsed").where((c) => c.year.eq(year)).first();
+  return `MK-${year}-${String(counter!.lastUsed).padStart(6, "0")}`;
+}
+
 async function seedHousehold(
   data: Record<string, unknown> & { patients: PatientSeed[] },
 ) {
@@ -102,6 +119,7 @@ async function seedHousehold(
     const row = await orm.Patient.create({
       ...scalars,
       id: newId(),
+      patientNumber: await nextPatientNumber(),
       householdId: created.id,
       createdAt: now,
       updatedAt: now,

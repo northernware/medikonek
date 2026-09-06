@@ -7,6 +7,7 @@ import { requireDoctor } from "@/lib/auth";
 import { db, orm } from "@/src/prisma/db";
 import { calendarDateToDb, instantToDb } from "@/lib/datetime";
 import { newId } from "@/lib/ids";
+import { allocatePatientNumber } from "@/lib/patient-number";
 import { fromDateInputValue } from "@/lib/datetime";
 import { clinicalItemSchema, patientSchema, toFieldErrors, type FormState } from "@/lib/validation";
 
@@ -262,9 +263,14 @@ export async function createPatient(_prev: FormState, formData: FormData): Promi
   // patient with no allergies would read as "none known" rather than "not asked".
   const patient = await db.transaction(async (tx) => {
     const now = instantToDb(new Date());
+    // Claimed in the same transaction as the row, so two registrations racing
+    // each other cannot be handed the same number.
+    const patientNumber = await allocatePatientNumber(tx);
+
     const created = await tx.orm.public.Patient.select("id").create({
       ...parsed.scalars,
       id: newId(),
+      patientNumber,
       householdId: parsed.householdId,
       createdAt: now,
       updatedAt: now,

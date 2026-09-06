@@ -17,7 +17,7 @@ export default async function PrescriptionPage({ params }: PageProps<"/records/[
   const record = await orm.MedicalRecord
     .include("patient", (p) =>
       p
-        .select("id", "firstName", "middleName", "lastName", "dateOfBirth", "sex")
+        .select("id", "firstName", "middleName", "lastName", "dateOfBirth", "sex", "patientNumber")
         .include("allergies", (a) => a.select("id", "label", "severity")),
     )
     .include("prescriptions", (rx) =>
@@ -78,6 +78,9 @@ export default async function PrescriptionPage({ params }: PageProps<"/records/[
           <section className="grid grid-cols-2 gap-x-8 gap-y-1 border-b border-black/30 py-4 text-sm">
             <p>
               <span className="font-medium">Patient:</span> {fullName(patient)}
+            </p>
+            <p>
+              <span className="font-medium">Patient no.:</span> {patient.patientNumber ?? "—"}
             </p>
             <p>
               <span className="font-medium">Age / Sex:</span> {ageFrom(calendarDateFromDb(patient.dateOfBirth), visitDate)}{" "}
