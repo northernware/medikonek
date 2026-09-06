@@ -3,24 +3,10 @@ import { CLINIC_TIME_ZONE, dayKey, fromDateTimeLocalValue } from "./datetime";
 import { blockedIntervals, fullDayClosure, hoursFor, type Schedule } from "./availability";
 
 /**
- * Clinic opening rules. The booking form uses these to offer slots and the
- * server re-checks them on submit — the form's list can always be stale, and
- * server actions are reachable by direct POST.
+ * Slot arithmetic. The rules themselves — which days, which hours, which
+ * breaks — live in lib/availability.ts and come from the clinic's own settings.
+ * Nothing here decides when the clinic is open.
  */
-export const OPEN_HOUR = 8; // 08:00
-export const CLOSE_HOUR = 17; // 17:00, the last minute a visit may still run to
-export const CLOSED_WEEKDAY = 0; // Sunday
-export const SLOT_STEP_MINUTES = 15;
-/** A booking must be made at least this many whole days ahead. */
-export const MIN_LEAD_DAYS = 1;
-/** How far ahead the form will let you book. */
-export const MAX_LEAD_DAYS = 180;
-
-export const OPEN_MINUTE = OPEN_HOUR * 60;
-export const CLOSE_MINUTE = CLOSE_HOUR * 60;
-
-export const OFFICE_HOURS_TEXT = "Monday to Saturday, 8:00 AM to 5:00 PM";
-
 /** A calendar day key with `days` added — plain UTC arithmetic, no zone risk. */
 export function addDays(key: string, days: number) {
   const [y, m, d] = key.split("-").map(Number);
@@ -33,18 +19,8 @@ export function weekdayOf(key: string) {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
-export function isClosedDay(key: string) {
-  return weekdayOf(key) === CLOSED_WEEKDAY;
-}
 
-/** The earliest day a booking may fall on, given the lead-time rule. */
-export function earliestBookableDay(now = new Date()) {
-  return addDays(dayKey(now), MIN_LEAD_DAYS);
-}
 
-export function latestBookableDay(now = new Date()) {
-  return addDays(dayKey(now), MAX_LEAD_DAYS);
-}
 
 /**
  * Statuses that hold a slot.
@@ -59,36 +35,6 @@ export function occupiesSlot(status: AppointmentStatus) {
 
 export type BusyInterval = { start: number; end: number };
 
-/**
- * Rejects a proposed booking, or returns null if it is allowed. This is the
- * single authority: the form mirrors it, but only this decides.
- */
-export function checkBookingRules(
-  scheduledAt: Date,
-  durationMinutes: number,
-  now = new Date(),
-): string | null {
-  const key = dayKey(scheduledAt);
-
-  if (key < earliestBookableDay(now)) {
-    return `Bookings must be made at least ${MIN_LEAD_DAYS === 1 ? "a day" : `${MIN_LEAD_DAYS} days`} in advance — the earliest available date is ${earliestBookableDay(now)}.`;
-  }
-  if (key > latestBookableDay(now)) {
-    return `That is further ahead than the clinic books (${MAX_LEAD_DAYS} days).`;
-  }
-  if (isClosedDay(key)) {
-    return "The clinic is closed on Sundays.";
-  }
-
-  const startMinute = minuteOfDay(scheduledAt);
-  if (startMinute < OPEN_MINUTE) {
-    return `The clinic opens at ${OPEN_HOUR}:00 AM. Choose a later time.`;
-  }
-  if (startMinute + durationMinutes > CLOSE_MINUTE) {
-    return `A ${durationMinutes}-minute visit starting then would run past the ${CLOSE_HOUR - 12}:00 PM closing time.`;
-  }
-  return null;
-}
 
 /** Minutes since midnight, in clinic time. */
 export function minuteOfDay(at: Date) {

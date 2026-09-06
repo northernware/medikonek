@@ -11,17 +11,28 @@ import {
 } from "@/lib/enums";
 import { requireDoctor } from "@/lib/auth";
 import { bookingFormData } from "@/lib/queries";
-import { isClosedDay } from "@/lib/scheduling";
+import { fullDayClosure, hoursFor, type Schedule } from "@/lib/availability";
 import { AppointmentForm } from "@/components/forms/appointment-form";
 import { buttonClass, Card, EmptyState, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Book appointment" };
 
-/** The requested day, if it is one the clinic could actually take. */
-function usableDate(requested: unknown, window: { earliest: string; latest: string }) {
+/**
+ * The requested day, if the clinic could actually take it.
+ *
+ * This asks the clinic's own schedule. Using a fixed "closed on Sundays" rule
+ * here let the page prefill a date the server would then refuse — a clinic that
+ * shuts on Saturdays, or a holiday, sailed straight through.
+ */
+function usableDate(
+  requested: unknown,
+  window: { earliest: string; latest: string },
+  schedule: Schedule,
+) {
   if (typeof requested !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(requested)) return "";
   if (requested < window.earliest || requested > window.latest) return "";
-  return isClosedDay(requested) ? "" : requested;
+  if (fullDayClosure(schedule, requested)) return "";
+  return hoursFor(schedule, requested) ? requested : "";
 }
 
 export default async function NewAppointmentPage({ searchParams }: PageProps<"/appointments/new">) {
@@ -64,7 +75,7 @@ export default async function NewAppointmentPage({ searchParams }: PageProps<"/a
           staffFields
           defaults={{
             patientId: preselected ? (patientId as string) : "",
-            date: usableDate(date, window),
+            date: usableDate(date, window, schedule),
             time: "",
             service:
               typeof service === "string" && service in ServiceType
