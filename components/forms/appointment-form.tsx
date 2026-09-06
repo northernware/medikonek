@@ -22,7 +22,9 @@ import type {
   FollowUpOptions,
   PatientOption,
 } from "@/lib/form-defaults";
-import { isClosedDay, OFFICE_HOURS_TEXT, slotsForDay } from "@/lib/scheduling";
+import { slotsForDay } from "@/lib/scheduling";
+import { describeWeek } from "@/lib/availability";
+import { fullDayClosure, hoursFor, type Schedule } from "@/lib/availability";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/validation";
 
 export function AppointmentForm({
@@ -31,6 +33,7 @@ export function AppointmentForm({
   patients,
   busyByDay,
   followUps,
+  schedule,
   window: bookingWindow,
   submitLabel,
   cancelHref,
@@ -42,6 +45,8 @@ export function AppointmentForm({
   patients: PatientOption[];
   busyByDay: BusyByDay;
   followUps: FollowUpOptions;
+  /** The clinic's own week, breaks and closures. */
+  schedule: Schedule;
   /** Bookable date range, decided by the server so both clocks agree. */
   window: { earliest: string; latest: string };
   submitLabel: string;
@@ -64,8 +69,8 @@ export function AppointmentForm({
   const duration = SERVICE_MINUTES[service as ServiceType] ?? 30;
 
   const slots = useMemo(
-    () => slotsForDay(date, duration, busyByDay[date] ?? [], bookingWindow),
-    [date, duration, busyByDay, bookingWindow],
+    () => slotsForDay(date, duration, busyByDay[date] ?? [], bookingWindow, schedule),
+    [date, duration, busyByDay, bookingWindow, schedule],
   );
 
   // When editing a visit that already sits outside the bookable window, its own
@@ -73,7 +78,12 @@ export function AppointmentForm({
   const keepsOriginalSlot =
     date === defaults.date && defaults.time !== "" && !slots.some((s) => s.value === defaults.time);
 
-  const closed = date !== "" && isClosedDay(date);
+  // Shut for the week's shape, or shut for a holiday — the form says which.
+  const dayClosure = date !== "" ? fullDayClosure(schedule, date) : null;
+  const closed = date !== "" && (dayClosure !== null || hoursFor(schedule, date) === null);
+  const closedReason = dayClosure
+    ? `The clinic is closed that day — ${dayClosure.reason}.`
+    : "The clinic does not open on that day. Choose another date.";
   const selectedPatient = patients.find((p) => p.id === patientId);
   const patientFollowUps = followUps[patientId] ?? [];
 
@@ -181,7 +191,7 @@ export function AppointmentForm({
         <div>
           <h2 className="text-sm font-semibold">Schedule</h2>
           <p className="text-sm text-ink-muted">
-            {OFFICE_HOURS_TEXT}. Bookings open from {formatDayKeyFull(bookingWindow.earliest)}.
+            {describeWeek(schedule)}. Bookings open from {formatDayKeyFull(bookingWindow.earliest)}.
           </p>
         </div>
 
@@ -221,7 +231,7 @@ export function AppointmentForm({
 
           {closed ? (
             <p className="rounded-lg border border-border bg-surface-muted px-3 py-3 text-sm text-ink-muted">
-              The clinic is closed on Sundays. Choose another date.
+              {closedReason}
             </p>
           ) : !date ? (
             <p className="rounded-lg border border-border bg-surface-muted px-3 py-3 text-sm text-ink-muted">

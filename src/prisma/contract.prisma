@@ -16,6 +16,11 @@ namespace public {
     households     Household[]
     medicalRecords MedicalRecord[] @relation(name: "MedicalRecord_doctorId_fkey")
     followUpsClosed MedicalRecord[] @relation(name: "MedicalRecord_followUpClosedById_fkey")
+    scheduleSettings ScheduleSettings?
+    clinicHours      ClinicHours[]
+    clinicBreaks     ClinicBreak[]
+    clinicClosures   ClinicClosure[]
+    serviceDurations ServiceDuration[]
 
     @@index([email], map: "Doctor_email_key", unique: true)
 
@@ -248,6 +253,83 @@ namespace public {
     lastUsed Int    @default(0)
 
     @@map("PatientNumberCounter")
+  }
+
+  // --- Scheduling settings -------------------------------------------------
+  // Availability used to be three module constants. It is now data, so a clinic
+  // can describe its own week, its breaks, and the days it is shut.
+
+  /// One row per doctor. Absent means the defaults in lib/scheduling.ts apply.
+  model ScheduleSettings {
+    doctorId          String  @id(map: "ScheduleSettings_pkey")
+    slotStepMinutes   Int     @default(15)
+    /// How far ahead a booking must be made. Zero lets walk-ins be booked today.
+    minLeadMinutes    Int     @default(1440)
+    maxLeadDays       Int     @default(180)
+    defaultDurationMinutes Int @default(30)
+    doctor            Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "ScheduleSettings_doctorId_fkey")
+
+    @@map("ScheduleSettings")
+  }
+
+  /// A working day. A weekday with no row is a day the clinic does not open.
+  model ClinicHours {
+    id          String @id(map: "ClinicHours_pkey")
+    doctorId    String
+    /// 0 = Sunday .. 6 = Saturday.
+    weekday     Int
+    openMinute  Int
+    closeMinute Int
+    doctor      Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "ClinicHours_doctorId_fkey")
+
+    @@index([doctorId, weekday], map: "ClinicHours_doctorId_weekday_key", unique: true)
+
+    @@map("ClinicHours")
+  }
+
+  /// A recurring break — lunch, a teaching slot. Null weekday means every day.
+  model ClinicBreak {
+    id          String  @id(map: "ClinicBreak_pkey")
+    doctorId    String
+    weekday     Int?
+    startMinute Int
+    endMinute   Int
+    label       String
+    doctor      Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "ClinicBreak_doctorId_fkey")
+
+    @@index([doctorId], map: "ClinicBreak_doctorId_idx")
+
+    @@map("ClinicBreak")
+  }
+
+  /// A one-off closure: a holiday, leave, or a blocked range within a day.
+  /// `startMinute`/`endMinute` null means the whole day is blocked.
+  model ClinicClosure {
+    id          String      @id(map: "ClinicClosure_pkey")
+    doctorId    String
+    startsOn    DateString
+    endsOn      DateString
+    startMinute Int?
+    endMinute   Int?
+    reason      String
+    doctor      Doctor      @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "ClinicClosure_doctorId_fkey")
+
+    @@index([doctorId, startsOn], map: "ClinicClosure_doctorId_startsOn_idx")
+
+    @@map("ClinicClosure")
+  }
+
+  /// Overrides the built-in length for one service.
+  model ServiceDuration {
+    id       String              @id(map: "ServiceDuration_pkey")
+    doctorId String
+    service  pg.enum(ServiceType)
+    minutes  Int
+    doctor   Doctor              @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "ServiceDuration_doctorId_fkey")
+
+    @@index([doctorId, service], map: "ServiceDuration_doctorId_service_key", unique: true)
+
+    @@map("ServiceDuration")
   }
 
   model Prescription {

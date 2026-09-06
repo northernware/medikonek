@@ -1,5 +1,6 @@
 import type { AppointmentStatus } from "@/lib/enums";
 import { CLINIC_TIME_ZONE, dayKey, fromDateTimeLocalValue } from "./datetime";
+import { blockedIntervals, fullDayClosure, hoursFor, type Schedule } from "./availability";
 
 /**
  * Clinic opening rules. The booking form uses these to offer slots and the
@@ -116,17 +117,29 @@ export function slotsForDay(
   durationMinutes: number,
   busy: BusyInterval[],
   window: { earliest: string; latest: string },
+  schedule: Schedule,
 ): Slot[] {
-  if (isClosedDay(key)) return [];
   if (key < window.earliest || key > window.latest) return [];
+  if (fullDayClosure(schedule, key)) return [];
+
+  const hours = hoursFor(schedule, key);
+  if (!hours) return [];
+
+  // Breaks and timed closures make a slot unavailable exactly as a booking
+  // does, so they join the same busy list rather than being a separate case.
+  const unavailable = [...busy, ...blockedIntervals(schedule, key)];
 
   const slots: Slot[] = [];
-  for (let m = OPEN_MINUTE; m + durationMinutes <= CLOSE_MINUTE; m += SLOT_STEP_MINUTES) {
+  for (
+    let m = hours.openMinute;
+    m + durationMinutes <= hours.closeMinute;
+    m += schedule.slotStepMinutes
+  ) {
     slots.push({
       minute: m,
       value: `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`,
       label: labelForMinute(m),
-      free: !overlaps(m, durationMinutes, busy),
+      free: !overlaps(m, durationMinutes, unavailable),
     });
   }
   return slots;

@@ -1,0 +1,680 @@
+[
+  {
+    "id": "table.ClinicBreak",
+    "label": "Create table \"ClinicBreak\"",
+    "summary": "Creates table \"ClinicBreak\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ClinicBreak"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ClinicBreak\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicBreak\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ClinicBreak\"",
+        "sql": "CREATE TABLE \"public\".\"ClinicBreak\" (\n  \"doctorId\" text NOT NULL,\n  \"endMinute\" int4 NOT NULL,\n  \"id\" text NOT NULL,\n  \"label\" text NOT NULL,\n  \"startMinute\" int4 NOT NULL,\n  \"weekday\" int4,\n  CONSTRAINT \"ClinicBreak_pkey\" PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ClinicBreak\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicBreak\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.ClinicClosure",
+    "label": "Create table \"ClinicClosure\"",
+    "summary": "Creates table \"ClinicClosure\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ClinicClosure"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ClinicClosure\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicClosure\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ClinicClosure\"",
+        "sql": "CREATE TABLE \"public\".\"ClinicClosure\" (\n  \"doctorId\" text NOT NULL,\n  \"endMinute\" int4,\n  \"endsOn\" date NOT NULL,\n  \"id\" text NOT NULL,\n  \"reason\" text NOT NULL,\n  \"startMinute\" int4,\n  \"startsOn\" date NOT NULL,\n  CONSTRAINT \"ClinicClosure_pkey\" PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ClinicClosure\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicClosure\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.ClinicHours",
+    "label": "Create table \"ClinicHours\"",
+    "summary": "Creates table \"ClinicHours\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ClinicHours"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ClinicHours\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicHours\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ClinicHours\"",
+        "sql": "CREATE TABLE \"public\".\"ClinicHours\" (\n  \"closeMinute\" int4 NOT NULL,\n  \"doctorId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"openMinute\" int4 NOT NULL,\n  \"weekday\" int4 NOT NULL,\n  CONSTRAINT \"ClinicHours_pkey\" PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ClinicHours\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicHours\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.ScheduleSettings",
+    "label": "Create table \"ScheduleSettings\"",
+    "summary": "Creates table \"ScheduleSettings\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ScheduleSettings"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ScheduleSettings\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ScheduleSettings\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ScheduleSettings\"",
+        "sql": "CREATE TABLE \"public\".\"ScheduleSettings\" (\n  \"defaultDurationMinutes\" int4 DEFAULT 30 NOT NULL,\n  \"doctorId\" text NOT NULL,\n  \"maxLeadDays\" int4 DEFAULT 180 NOT NULL,\n  \"minLeadMinutes\" int4 DEFAULT 1440 NOT NULL,\n  \"slotStepMinutes\" int4 DEFAULT 15 NOT NULL,\n  CONSTRAINT \"ScheduleSettings_pkey\" PRIMARY KEY (\"doctorId\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ScheduleSettings\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ScheduleSettings\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.ServiceDuration",
+    "label": "Create table \"ServiceDuration\"",
+    "summary": "Creates table \"ServiceDuration\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ServiceDuration"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ServiceDuration\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ServiceDuration\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ServiceDuration\"",
+        "sql": "CREATE TABLE \"public\".\"ServiceDuration\" (\n  \"doctorId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"minutes\" int4 NOT NULL,\n  \"service\" \"ServiceType\" NOT NULL,\n  CONSTRAINT \"ServiceDuration_pkey\" PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ServiceDuration\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ServiceDuration\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ClinicBreak.ClinicBreak_doctorId_idx",
+    "label": "Create index \"ClinicBreak_doctorId_idx\" on \"ClinicBreak\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ClinicBreak_doctorId_idx",
+        "table": "ClinicBreak"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ClinicBreak_doctorId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicBreak_doctorId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ClinicBreak_doctorId_idx\"",
+        "sql": "CREATE INDEX \"ClinicBreak_doctorId_idx\" ON \"public\".\"ClinicBreak\" (\"doctorId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ClinicBreak_doctorId_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicBreak_doctorId_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ClinicClosure.ClinicClosure_doctorId_idx_04369053",
+    "label": "Create index \"ClinicClosure_doctorId_idx_04369053\" on \"ClinicClosure\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ClinicClosure_doctorId_idx_04369053",
+        "table": "ClinicClosure"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ClinicClosure_doctorId_idx_04369053\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicClosure_doctorId_idx_04369053\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ClinicClosure_doctorId_idx_04369053\"",
+        "sql": "CREATE INDEX \"ClinicClosure_doctorId_idx_04369053\" ON \"public\".\"ClinicClosure\" (\"doctorId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ClinicClosure_doctorId_idx_04369053\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicClosure_doctorId_idx_04369053\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ClinicClosure.ClinicClosure_doctorId_startsOn_idx",
+    "label": "Create index \"ClinicClosure_doctorId_startsOn_idx\" on \"ClinicClosure\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ClinicClosure_doctorId_startsOn_idx",
+        "table": "ClinicClosure"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ClinicClosure_doctorId_startsOn_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicClosure_doctorId_startsOn_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ClinicClosure_doctorId_startsOn_idx\"",
+        "sql": "CREATE INDEX \"ClinicClosure_doctorId_startsOn_idx\" ON \"public\".\"ClinicClosure\" (\"doctorId\", \"startsOn\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ClinicClosure_doctorId_startsOn_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicClosure_doctorId_startsOn_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ClinicHours.ClinicHours_doctorId_idx_04369053",
+    "label": "Create index \"ClinicHours_doctorId_idx_04369053\" on \"ClinicHours\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ClinicHours_doctorId_idx_04369053",
+        "table": "ClinicHours"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ClinicHours_doctorId_idx_04369053\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicHours_doctorId_idx_04369053\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ClinicHours_doctorId_idx_04369053\"",
+        "sql": "CREATE INDEX \"ClinicHours_doctorId_idx_04369053\" ON \"public\".\"ClinicHours\" (\"doctorId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ClinicHours_doctorId_idx_04369053\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicHours_doctorId_idx_04369053\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ClinicHours.ClinicHours_doctorId_weekday_key",
+    "label": "Create index \"ClinicHours_doctorId_weekday_key\" on \"ClinicHours\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ClinicHours_doctorId_weekday_key",
+        "table": "ClinicHours"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ClinicHours_doctorId_weekday_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicHours_doctorId_weekday_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ClinicHours_doctorId_weekday_key\"",
+        "sql": "CREATE UNIQUE INDEX \"ClinicHours_doctorId_weekday_key\" ON \"public\".\"ClinicHours\" (\"doctorId\", \"weekday\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ClinicHours_doctorId_weekday_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ClinicHours_doctorId_weekday_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ServiceDuration.ServiceDuration_doctorId_idx_04369053",
+    "label": "Create index \"ServiceDuration_doctorId_idx_04369053\" on \"ServiceDuration\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ServiceDuration_doctorId_idx_04369053",
+        "table": "ServiceDuration"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ServiceDuration_doctorId_idx_04369053\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ServiceDuration_doctorId_idx_04369053\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ServiceDuration_doctorId_idx_04369053\"",
+        "sql": "CREATE INDEX \"ServiceDuration_doctorId_idx_04369053\" ON \"public\".\"ServiceDuration\" (\"doctorId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ServiceDuration_doctorId_idx_04369053\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ServiceDuration_doctorId_idx_04369053\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ServiceDuration.ServiceDuration_doctorId_service_key",
+    "label": "Create index \"ServiceDuration_doctorId_service_key\" on \"ServiceDuration\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ServiceDuration_doctorId_service_key",
+        "table": "ServiceDuration"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ServiceDuration_doctorId_service_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ServiceDuration_doctorId_service_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ServiceDuration_doctorId_service_key\"",
+        "sql": "CREATE UNIQUE INDEX \"ServiceDuration_doctorId_service_key\" ON \"public\".\"ServiceDuration\" (\"doctorId\", \"service\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ServiceDuration_doctorId_service_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ServiceDuration_doctorId_service_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ClinicBreak.ClinicBreak_doctorId_fkey",
+    "label": "Add foreign key \"ClinicBreak_doctorId_fkey\" on \"ClinicBreak\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ClinicBreak_doctorId_fkey",
+        "table": "ClinicBreak"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ClinicBreak_doctorId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ClinicBreak_doctorId_fkey",
+          "public",
+          "\"public\".\"ClinicBreak\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ClinicBreak_doctorId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ClinicBreak\"\nADD CONSTRAINT \"ClinicBreak_doctorId_fkey\"\nFOREIGN KEY (\"doctorId\")\nREFERENCES \"public\".\"Doctor\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ClinicBreak_doctorId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ClinicBreak_doctorId_fkey",
+          "public",
+          "\"public\".\"ClinicBreak\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ClinicClosure.ClinicClosure_doctorId_fkey",
+    "label": "Add foreign key \"ClinicClosure_doctorId_fkey\" on \"ClinicClosure\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ClinicClosure_doctorId_fkey",
+        "table": "ClinicClosure"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ClinicClosure_doctorId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ClinicClosure_doctorId_fkey",
+          "public",
+          "\"public\".\"ClinicClosure\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ClinicClosure_doctorId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ClinicClosure\"\nADD CONSTRAINT \"ClinicClosure_doctorId_fkey\"\nFOREIGN KEY (\"doctorId\")\nREFERENCES \"public\".\"Doctor\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ClinicClosure_doctorId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ClinicClosure_doctorId_fkey",
+          "public",
+          "\"public\".\"ClinicClosure\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ClinicHours.ClinicHours_doctorId_fkey",
+    "label": "Add foreign key \"ClinicHours_doctorId_fkey\" on \"ClinicHours\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ClinicHours_doctorId_fkey",
+        "table": "ClinicHours"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ClinicHours_doctorId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ClinicHours_doctorId_fkey",
+          "public",
+          "\"public\".\"ClinicHours\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ClinicHours_doctorId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ClinicHours\"\nADD CONSTRAINT \"ClinicHours_doctorId_fkey\"\nFOREIGN KEY (\"doctorId\")\nREFERENCES \"public\".\"Doctor\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ClinicHours_doctorId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ClinicHours_doctorId_fkey",
+          "public",
+          "\"public\".\"ClinicHours\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ScheduleSettings.ScheduleSettings_doctorId_fkey",
+    "label": "Add foreign key \"ScheduleSettings_doctorId_fkey\" on \"ScheduleSettings\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ScheduleSettings_doctorId_fkey",
+        "table": "ScheduleSettings"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ScheduleSettings_doctorId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ScheduleSettings_doctorId_fkey",
+          "public",
+          "\"public\".\"ScheduleSettings\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ScheduleSettings_doctorId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ScheduleSettings\"\nADD CONSTRAINT \"ScheduleSettings_doctorId_fkey\"\nFOREIGN KEY (\"doctorId\")\nREFERENCES \"public\".\"Doctor\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ScheduleSettings_doctorId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ScheduleSettings_doctorId_fkey",
+          "public",
+          "\"public\".\"ScheduleSettings\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ServiceDuration.ServiceDuration_doctorId_fkey",
+    "label": "Add foreign key \"ServiceDuration_doctorId_fkey\" on \"ServiceDuration\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ServiceDuration_doctorId_fkey",
+        "table": "ServiceDuration"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ServiceDuration_doctorId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ServiceDuration_doctorId_fkey",
+          "public",
+          "\"public\".\"ServiceDuration\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ServiceDuration_doctorId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ServiceDuration\"\nADD CONSTRAINT \"ServiceDuration_doctorId_fkey\"\nFOREIGN KEY (\"doctorId\")\nREFERENCES \"public\".\"Doctor\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ServiceDuration_doctorId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ServiceDuration_doctorId_fkey",
+          "public",
+          "\"public\".\"ServiceDuration\""
+        ]
+      }
+    ]
+  }
+]

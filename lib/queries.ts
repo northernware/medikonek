@@ -9,13 +9,9 @@ import {
   startOfClinicDay,
 } from "./datetime";
 import { fullName, SERVICE_LABELS } from "./domain";
-import {
-  addDays,
-  earliestBookableDay,
-  latestBookableDay,
-  minuteOfDay,
-  occupiesSlot,
-} from "./scheduling";
+import { DEFAULT_SCHEDULE, type Schedule } from "./availability";
+import { addDays, minuteOfDay, occupiesSlot } from "./scheduling";
+import { earliestBookableDay, latestBookableDay } from "./availability";
 import type { AppointmentListItem } from "@/components/appointment-list";
 import type { BusyByDay, FollowUpOptions, PatientOption } from "./form-defaults";
 
@@ -72,8 +68,9 @@ export async function patientOptions(doctorId: string): Promise<PatientOption[]>
  */
 export async function bookingFormData(doctorId: string, excludeAppointmentId?: string) {
   const now = new Date();
-  const earliest = earliestBookableDay(now);
-  const latest = latestBookableDay(now);
+  const schedule = await loadSchedule(doctorId);
+  const earliest = earliestBookableDay(schedule, now);
+  const latest = latestBookableDay(schedule, now);
 
   const windowStart = instantToDb(startOfClinicDay(earliest));
   const windowEnd = instantToDb(startOfClinicDay(addDays(latest, 1)));
@@ -118,7 +115,7 @@ export async function bookingFormData(doctorId: string, excludeAppointmentId?: s
     });
   }
 
-  return { patients, busyByDay, followUps, window: { earliest, latest } };
+  return { patients, busyByDay, followUps, schedule, window: { earliest, latest } };
 }
 
 /**
@@ -159,4 +156,50 @@ export async function followUpsDue(doctorId: string, horizonDays = 14) {
   return [...neverBooked, ...fellThrough].sort((a, b) =>
     (a.followUpDate ?? "").localeCompare(b.followUpDate ?? ""),
   );
+}
+
+/**
+ * A doctor's schedule, as the availability rules need it.
+ *
+ * A clinic that has configured nothing gets `DEFAULT_SCHEDULE`, which matches
+ * the constants this used to be — so behaviour is unchanged until someone
+ * changes something.
+ */
+export async function loadSchedule(doctorId: string): Promise<Schedule> {
+  const [settings, hours, breaks, closures, durations] = await Promise.all([
+    orm.ScheduleSettings
+      .select("slotStepMinutes", "minLeadMinutes", "maxLeadDays", "defaultDurationMinutes")
+      .where((s) => s.doctorId.eq(doctorId))
+      .first(),
+    orm.ClinicHours
+      .select("weekday", "openMinute", "closeMinute")
+      .where((h) => h.doctorId.eq(doctorId))
+      .orderBy((h) => h.weekday.asc())
+      .all(),
+    orm.ClinicBreak
+      .select("weekday", "startMinute", "endMinute", "label")
+      .where((b) => b.doctorId.eq(doctorId))
+      .all(),
+    orm.ClinicClosure
+      .select("startsOn", "endsOn", "startMinute", "endMinute", "reason")
+      .where((c) => c.doctorId.eq(doctorId))
+      .all(),
+    orm.ServiceDuration
+      .select("service", "minutes")
+      .where((d) => d.doctorId.eq(doctorId))
+      .all(),
+  ]);
+
+  return {
+    // An unconfigured week means the defaults, not a clinic that never opens.
+    hours: hours.length > 0 ? hours : DEFAULT_SCHEDULE.hours,
+    breaks,
+    closures,
+    slotStepMinutes: settings?.slotStepMinutes ?? DEFAULT_SCHEDULE.slotStepMinutes,
+    minLeadMinutes: settings?.minLeadMinutes ?? DEFAULT_SCHEDULE.minLeadMinutes,
+    maxLeadDays: settings?.maxLeadDays ?? DEFAULT_SCHEDULE.maxLeadDays,
+    defaultDurationMinutes:
+      settings?.defaultDurationMinutes ?? DEFAULT_SCHEDULE.defaultDurationMinutes,
+    serviceDurations: Object.fromEntries(durations.map((d) => [d.service, d.minutes])),
+  };
 }

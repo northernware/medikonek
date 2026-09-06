@@ -27,7 +27,7 @@ function usableDate(requested: unknown, window: { earliest: string; latest: stri
 export default async function NewAppointmentPage({ searchParams }: PageProps<"/appointments/new">) {
   const doctor = await requireDoctor();
   const { patientId, date, service, followUpFor } = await searchParams;
-  const { patients, busyByDay, followUps, window } = await bookingFormData(doctor.id);
+  const { patients, busyByDay, followUps, schedule, window } = await bookingFormData(doctor.id);
 
   if (patients.length === 0) {
     return (
@@ -59,6 +59,7 @@ export default async function NewAppointmentPage({ searchParams }: PageProps<"/a
           patients={patients}
           busyByDay={busyByDay}
           followUps={followUps}
+          schedule={schedule}
           window={window}
           staffFields
           defaults={{

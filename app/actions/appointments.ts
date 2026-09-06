@@ -13,7 +13,9 @@ import {
 } from "@/lib/datetime";
 import { newId } from "@/lib/ids";
 import { SERVICE_MINUTES } from "@/lib/domain";
-import { checkBookingRules, formatSpan, minuteOfDay, occupiesSlot, overlaps } from "@/lib/scheduling";
+import { formatSpan, minuteOfDay, occupiesSlot, overlaps } from "@/lib/scheduling";
+import { checkAvailability, durationFor } from "@/lib/availability";
+import { loadSchedule } from "@/lib/queries";
 import { appointmentSchema, toFieldErrors, type FormState } from "@/lib/validation";
 
 async function assertOwnsPatient(doctorId: string, patientId: string) {
@@ -62,10 +64,19 @@ async function resolveBooking(
     return { error: { message: "Check the date and time.", fieldErrors: { time: ["Invalid time"] } } };
   }
 
-  // Duration follows the service rather than being asked for.
-  const durationMinutes = SERVICE_MINUTES[service];
+  // Duration follows the service, unless the clinic has set its own length.
+  const schedule = await loadSchedule(doctorId);
+  const durationMinutes = durationFor(schedule, service, SERVICE_MINUTES[service]);
 
-  const ruleBreak = checkBookingRules(scheduledAt, durationMinutes);
+  // The clinic's own week, breaks and closures — not module constants. A
+  // walk-in is exempt from the lead time: the patient is already at the desk.
+  const ruleBreak = checkAvailability(
+    schedule,
+    scheduledAt,
+    durationMinutes,
+    minuteOfDay(scheduledAt),
+    { allowSameDay: data.source === "WALK_IN" },
+  );
   if (ruleBreak) {
     return {
       error: {
