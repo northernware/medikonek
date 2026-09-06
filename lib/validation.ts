@@ -17,6 +17,22 @@ import {
 export type FormState = {
   message?: string;
   fieldErrors?: Record<string, string[]>;
+  /**
+   * Possible duplicates found while registering. Presented for a person to
+   * judge — records are never merged automatically, and the form resubmits with
+   * `confirmDuplicate` once someone has decided this really is a new patient.
+   */
+  duplicates?: DuplicateMatch[];
+};
+
+export type DuplicateMatch = {
+  id: string;
+  patientNumber: string | null;
+  name: string;
+  dateOfBirth: string;
+  householdName: string;
+  /** Which fields matched, so staff can see why it was flagged. */
+  matchedOn: string[];
 };
 
 export const EMPTY_FORM_STATE: FormState = {};
@@ -88,8 +104,16 @@ export const householdSchema = z.object({
   notes: optionalText(2000),
 });
 
+export const NEW_HOUSEHOLD = "__new__";
+
 export const patientSchema = z.object({
+  // Either an existing household's id, or the sentinel meaning "create one from
+  // `newHouseholdName`" — so a patient can be registered without first
+  // navigating into a household.
   householdId: requiredText("Household", 40),
+  newHouseholdName: optionalText(120),
+  /** Set once staff have looked at the possible duplicates and said go ahead. */
+  confirmDuplicate: optionalText(4),
   firstName: requiredText("First name", 80),
   middleName: optionalText(80),
   lastName: requiredText("Last name", 80),

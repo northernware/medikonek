@@ -1,14 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Field, FieldGrid, FormError, Select, SubmitButton, TextInput } from "@/components/form";
 import { buttonClass } from "@/components/ui";
 import { BLOOD_TYPE_LABELS, RELATIONSHIP_LABELS, SEX_LABELS } from "@/lib/domain";
 import { ALERT_GROUPS, ALLERGY_GROUPS, CONDITION_GROUPS, MEDICATION_GROUPS } from "@/lib/clinical";
 import { ClinicalPicker } from "@/components/clinical-picker";
 import type { PatientDefaults } from "@/lib/form-defaults";
-import { EMPTY_FORM_STATE, type FormState } from "@/lib/validation";
+import { EMPTY_FORM_STATE, NEW_HOUSEHOLD, type FormState } from "@/lib/validation";
+import Link from "next/link";
 
 export function PatientForm({
   action,
@@ -25,22 +25,88 @@ export function PatientForm({
 }) {
   const [state, formAction] = useActionState(action, EMPTY_FORM_STATE);
   const err = state.fieldErrors;
+  const [householdId, setHouseholdId] = useState(defaults.householdId);
+  const creatingHousehold = householdId === NEW_HOUSEHOLD;
 
   return (
     <form action={formAction} className="space-y-6">
       <FormError message={state.message} />
 
+      {state.duplicates && state.duplicates.length > 0 ? (
+        <div className="rounded-lg border border-warn/50 bg-warn-tint px-4 py-3">
+          <p className="text-[13px] font-medium text-warn-ink">
+            Check these before registering — they may be the same person.
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {state.duplicates.map((d) => (
+              <li key={d.id} className="text-[13px]">
+                <Link href={`/patients/${d.id}`} className="font-medium underline">
+                  {d.name}
+                </Link>
+                <span className="text-ink-muted">
+                  {d.patientNumber ? ` · ${d.patientNumber}` : ""} · born {d.dateOfBirth} ·{" "}
+                  {d.householdName} household
+                </span>
+                {d.matchedOn.length > 0 ? (
+                  <span className="block text-xs text-warn-ink">
+                    same {d.matchedOn.join(" and ")}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {/* Nothing is merged automatically — a person decides. */}
+          <label className="mt-3 flex items-center gap-2 text-[13px]">
+            <input type="checkbox" name="confirmDuplicate" value="1" defaultChecked />
+            This is a different person — register anyway
+          </label>
+        </div>
+      ) : null}
+
       <section className="space-y-4">
         <FieldGrid>
-          <Field label="Household" htmlFor="householdId" error={err?.householdId} required>
-            <Select id="householdId" name="householdId" defaultValue={defaults.householdId} required>
+          <Field
+            label="Household"
+            htmlFor="householdId"
+            error={err?.householdId}
+            hint={creatingHousehold ? undefined : "Or create one without leaving this form."}
+            required
+          >
+            <Select
+              id="householdId"
+              name="householdId"
+              value={householdId}
+              onChange={(e) => setHouseholdId(e.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Select a household…
+              </option>
               {households.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}
                 </option>
               ))}
+              <option value={NEW_HOUSEHOLD}>＋ New household…</option>
             </Select>
           </Field>
+          {creatingHousehold ? (
+            <Field
+              label="New household name"
+              htmlFor="newHouseholdName"
+              error={err?.newHouseholdName}
+              hint="Usually the surname."
+              required
+            >
+              <TextInput
+                id="newHouseholdName"
+                name="newHouseholdName"
+                placeholder="Dela Cruz"
+                required
+                invalid={Boolean(err?.newHouseholdName)}
+              />
+            </Field>
+          ) : null}
           <Field label="Relationship" htmlFor="relationship" error={err?.relationship} required>
             <Select id="relationship" name="relationship" defaultValue={defaults.relationship} required>
               {Object.entries(RELATIONSHIP_LABELS).map(([value, label]) => (

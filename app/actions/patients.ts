@@ -9,7 +9,14 @@ import { calendarDateToDb, instantToDb } from "@/lib/datetime";
 import { newId } from "@/lib/ids";
 import { allocatePatientNumber } from "@/lib/patient-number";
 import { fromDateInputValue } from "@/lib/datetime";
-import { clinicalItemSchema, patientSchema, toFieldErrors, type FormState } from "@/lib/validation";
+import {
+  clinicalItemSchema,
+  patientSchema,
+  toFieldErrors,
+  NEW_HOUSEHOLD,
+  type FormState,
+} from "@/lib/validation";
+import { findPossibleDuplicates } from "@/lib/queries";
 
 /** Confirms the household belongs to the signed-in doctor before anything is written. */
 async function assertOwnsHousehold(doctorId: string, householdId: string) {
@@ -224,6 +231,8 @@ function parsePatientForm(formData: FormData): ParsedPatient {
 
   const {
     householdId,
+    newHouseholdName: _newHousehold,
+    confirmDuplicate: _confirm,
     dateOfBirth: _dob,
     allergyStatus,
     conditionStatus,
@@ -255,14 +264,60 @@ export async function createPatient(_prev: FormState, formData: FormData): Promi
   const parsed = parsePatientForm(formData);
   if (!parsed.ok) return parsed.error;
 
-  if (!(await assertOwnsHousehold(doctor.id, parsed.householdId))) {
+  const creatingHousehold = parsed.householdId === NEW_HOUSEHOLD;
+  const newHouseholdName = String(formData.get("newHouseholdName") ?? "").trim();
+
+  if (creatingHousehold) {
+    if (!newHouseholdName) {
+      return {
+        message: "Name the new household.",
+        fieldErrors: { newHouseholdName: ["Required when creating a household"] },
+      };
+    }
+  } else if (!(await assertOwnsHousehold(doctor.id, parsed.householdId))) {
     return { message: "That household is not on your list." };
+  }
+
+  // Possible duplicates are shown, never merged. Staff resubmit with
+  // `confirmDuplicate` once they have decided this really is a new person.
+  if (String(formData.get("confirmDuplicate") ?? "") !== "1") {
+    const duplicates = await findPossibleDuplicates(doctor.id, {
+      firstName: parsed.scalars.firstName as string,
+      lastName: parsed.scalars.lastName as string,
+      dateOfBirth: parsed.scalars.dateOfBirth as string,
+      contactNumber: (parsed.scalars.contactNumber as string | null) ?? null,
+      email: (parsed.scalars.email as string | null) ?? null,
+    });
+    if (duplicates.length > 0) {
+      return {
+        message:
+          duplicates.length === 1
+            ? "Someone matching this person is already registered."
+            : `${duplicates.length} people matching this person are already registered.`,
+        duplicates,
+      };
+    }
   }
 
   // The patient and its clinical lists are written together: a half-created
   // patient with no allergies would read as "none known" rather than "not asked".
   const patient = await db.transaction(async (tx) => {
     const now = instantToDb(new Date());
+
+    // A household typed into the form is created here, in the same unit of work
+    // as the patient — so a failed registration never leaves an empty household
+    // behind.
+    const householdId = creatingHousehold
+      ? (
+          await tx.orm.public.Household.select("id").create({
+            id: newId(),
+            doctorId: doctor.id,
+            name: newHouseholdName,
+            createdAt: now,
+            updatedAt: now,
+          })
+        ).id
+      : parsed.householdId;
     // Claimed in the same transaction as the row, so two registrations racing
     // each other cannot be handed the same number.
     const patientNumber = await allocatePatientNumber(tx);
@@ -271,15 +326,16 @@ export async function createPatient(_prev: FormState, formData: FormData): Promi
       ...parsed.scalars,
       id: newId(),
       patientNumber,
-      householdId: parsed.householdId,
+      householdId,
       createdAt: now,
       updatedAt: now,
     });
     await writeClinicalLists(tx.orm.public, created.id, parsed.lists);
-    return created;
+    return { ...created, householdId };
   });
 
-  revalidatePath(`/households/${parsed.householdId}`);
+  revalidatePath(`/households/${patient.householdId}`);
+  revalidatePath("/households");
   revalidatePath("/patients");
   redirect(`/patients/${patient.id}`);
 }

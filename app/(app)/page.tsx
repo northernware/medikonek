@@ -96,7 +96,7 @@ export default async function DashboardPage() {
             <Link href="/appointments/new" className={buttonClass("primary")}>
               Book appointment
             </Link>
-            <Link href="/households" className={buttonClass("secondary")}>
+            <Link href="/patients/new" className={buttonClass("secondary")}>
               Add patient
             </Link>
           </>

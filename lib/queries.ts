@@ -8,7 +8,9 @@ import {
   instantToDb,
   startOfClinicDay,
 } from "./datetime";
+import { and, or } from "@prisma/orm-postgres/orm-client";
 import { fullName, SERVICE_LABELS } from "./domain";
+import type { DuplicateMatch } from "./validation";
 import { DEFAULT_SCHEDULE, type Schedule } from "./availability";
 import { addDays, minuteOfDay, occupiesSlot } from "./scheduling";
 import { earliestBookableDay, latestBookableDay } from "./availability";
@@ -202,4 +204,68 @@ export async function loadSchedule(doctorId: string): Promise<Schedule> {
       settings?.defaultDurationMinutes ?? DEFAULT_SCHEDULE.defaultDurationMinutes,
     serviceDurations: Object.fromEntries(durations.map((d) => [d.service, d.minutes])),
   };
+}
+
+/**
+ * Patients who might already be the person being registered.
+ *
+ * Three signals, any of which is worth a second look: the same name and date of
+ * birth, the same phone number, or the same email. Nothing is merged — the
+ * matches go back to the form for a person to judge, which is the only safe
+ * way to treat a possible duplicate of a medical record.
+ */
+export async function findPossibleDuplicates(
+  doctorId: string,
+  candidate: {
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+    contactNumber: string | null;
+    email: string | null;
+  },
+  excludePatientId?: string,
+): Promise<DuplicateMatch[]> {
+  const phone = candidate.contactNumber?.replace(/\s+/g, "") || null;
+
+  let query = orm.Patient
+    .select("id", "patientNumber", "firstName", "middleName", "lastName", "dateOfBirth", "contactNumber", "email")
+    .include("household", (h) => h.select("name"))
+    .where((p) => p.household.some((h) => h.doctorId.eq(doctorId)))
+    .where((p) =>
+      or(
+        and(
+          p.firstName.ilike(candidate.firstName),
+          p.lastName.ilike(candidate.lastName),
+          p.dateOfBirth.eq(candidate.dateOfBirth),
+        ),
+        ...(phone ? [p.contactNumber.ilike(`%${phone}%`)] : []),
+        ...(candidate.email ? [p.email.ilike(candidate.email)] : []),
+      ),
+    )
+    .limit(10);
+
+  if (excludePatientId) query = query.where((p) => p.id.neq(excludePatientId));
+
+  return (await query.all()).map((p) => {
+    const matchedOn: string[] = [];
+    if (
+      p.firstName.toLowerCase() === candidate.firstName.toLowerCase() &&
+      p.lastName.toLowerCase() === candidate.lastName.toLowerCase() &&
+      p.dateOfBirth === candidate.dateOfBirth
+    ) {
+      matchedOn.push("name and date of birth");
+    }
+    if (phone && p.contactNumber?.replace(/\s+/g, "") === phone) matchedOn.push("phone number");
+    if (candidate.email && p.email?.toLowerCase() === candidate.email.toLowerCase()) {
+      matchedOn.push("email");
+    }
+    return {
+      id: p.id,
+      patientNumber: p.patientNumber,
+      name: fullName(p),
+      dateOfBirth: p.dateOfBirth,
+      householdName: p.household.name,
+      matchedOn,
+    };
+  });
 }

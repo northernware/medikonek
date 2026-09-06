@@ -57,8 +57,8 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
         subtitle={`${patients.length} ${patients.length === 1 ? "person" : "people"}${query ? " matching" : " on your list"}`}
         actions={
           householdCount > 0 ? (
-            <Link href="/households" className={buttonClass("secondary")}>
-              Add via household
+            <Link href="/patients/new" className={buttonClass("secondary")}>
+              Add patient
             </Link>
           ) : (
             <Link href="/households/new" className={buttonClass("primary")}>
