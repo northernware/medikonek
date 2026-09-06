@@ -13,6 +13,7 @@ import {
   clinicalItemSchema,
   patientSchema,
   toFieldErrors,
+  identityFingerprint,
   NEW_HOUSEHOLD,
   type FormState,
 } from "@/lib/validation";
@@ -259,6 +260,44 @@ function parsePatientForm(formData: FormData): ParsedPatient {
   };
 }
 
+/**
+ * The duplicate challenge, or null when the save may go ahead.
+ *
+ * Possible duplicates are shown, never merged. The confirmation carries a
+ * fingerprint of the details it was given for, so an approval of one person's
+ * details cannot be replayed against edited ones — change the name or the date
+ * of birth after ticking and this no longer matches, so we ask again.
+ */
+async function duplicateChallenge(
+  doctorId: string,
+  formData: FormData,
+  scalars: Record<string, unknown>,
+  excludePatientId?: string,
+): Promise<FormState | null> {
+  const identity = {
+    firstName: scalars.firstName as string,
+    lastName: scalars.lastName as string,
+    dateOfBirth: scalars.dateOfBirth as string,
+    contactNumber: (scalars.contactNumber as string | null) ?? null,
+    email: (scalars.email as string | null) ?? null,
+  };
+
+  const fingerprint = identityFingerprint(identity);
+  if (String(formData.get("confirmDuplicate") ?? "") === fingerprint) return null;
+
+  const duplicates = await findPossibleDuplicates(doctorId, identity, excludePatientId);
+  if (duplicates.length === 0) return null;
+
+  return {
+    message:
+      duplicates.length === 1
+        ? "Someone matching this person is already registered."
+        : `${duplicates.length} people matching this person are already registered.`,
+    duplicates,
+    confirmToken: fingerprint,
+  };
+}
+
 export async function createPatient(_prev: FormState, formData: FormData): Promise<FormState> {
   const doctor = await requireDoctor();
   const parsed = parsePatientForm(formData);
@@ -278,26 +317,8 @@ export async function createPatient(_prev: FormState, formData: FormData): Promi
     return { message: "That household is not on your list." };
   }
 
-  // Possible duplicates are shown, never merged. Staff resubmit with
-  // `confirmDuplicate` once they have decided this really is a new person.
-  if (String(formData.get("confirmDuplicate") ?? "") !== "1") {
-    const duplicates = await findPossibleDuplicates(doctor.id, {
-      firstName: parsed.scalars.firstName as string,
-      lastName: parsed.scalars.lastName as string,
-      dateOfBirth: parsed.scalars.dateOfBirth as string,
-      contactNumber: (parsed.scalars.contactNumber as string | null) ?? null,
-      email: (parsed.scalars.email as string | null) ?? null,
-    });
-    if (duplicates.length > 0) {
-      return {
-        message:
-          duplicates.length === 1
-            ? "Someone matching this person is already registered."
-            : `${duplicates.length} people matching this person are already registered.`,
-        duplicates,
-      };
-    }
-  }
+  const challenge = await duplicateChallenge(doctor.id, formData, parsed.scalars);
+  if (challenge) return challenge;
 
   // The patient and its clinical lists are written together: a half-created
   // patient with no allergies would read as "none known" rather than "not asked".
@@ -359,6 +380,10 @@ export async function updatePatient(
     .where((p) => p.household.some((h) => h.doctorId.eq(doctor.id)))
     .first();
   if (!owned) return { message: "That patient no longer exists." };
+
+  // Excluding this patient stops it matching itself.
+  const challenge = await duplicateChallenge(doctor.id, formData, parsed.scalars, patientId);
+  if (challenge) return challenge;
 
   // The lists are edited as a whole, so they are replaced wholesale — the same
   // way prescriptions are handled on a record.

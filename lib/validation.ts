@@ -19,10 +19,15 @@ export type FormState = {
   fieldErrors?: Record<string, string[]>;
   /**
    * Possible duplicates found while registering. Presented for a person to
-   * judge — records are never merged automatically, and the form resubmits with
+   * judge â records are never merged automatically, and the form resubmits with
    * `confirmDuplicate` once someone has decided this really is a new patient.
    */
   duplicates?: DuplicateMatch[];
+  /**
+   * Fingerprint of the details the duplicates were found for. The form sends it
+   * back as the confirmation, so a tick approves exactly what was on screen.
+   */
+  confirmToken?: string;
 };
 
 export type DuplicateMatch = {
@@ -37,7 +42,7 @@ export type DuplicateMatch = {
 
 export const EMPTY_FORM_STATE: FormState = {};
 
-/** A blank text input arrives as "" — store it as absent, not as an empty string. */
+/** A blank text input arrives as "" â store it as absent, not as an empty string. */
 function optionalText(max = 500) {
   return z
     .string()
@@ -108,12 +113,17 @@ export const NEW_HOUSEHOLD = "__new__";
 
 export const patientSchema = z.object({
   // Either an existing household's id, or the sentinel meaning "create one from
-  // `newHouseholdName`" — so a patient can be registered without first
+  // `newHouseholdName`" â so a patient can be registered without first
   // navigating into a household.
   householdId: requiredText("Household", 40),
   newHouseholdName: optionalText(120),
-  /** Set once staff have looked at the possible duplicates and said go ahead. */
-  confirmDuplicate: optionalText(4),
+  /**
+   * The fingerprint of the details staff actually reviewed, set when they tick
+   * "this is a different person". It is compared against the submitted details
+   * server-side, so it is a token rather than a flag — and long enough to hold
+   * every identifying field joined together.
+   */
+  confirmDuplicate: optionalText(400),
   firstName: requiredText("First name", 80),
   middleName: optionalText(80),
   lastName: requiredText("Last name", 80),
@@ -190,7 +200,7 @@ export const medicalRecordSchema = z.object({
   notes: optionalText(4000),
 });
 
-/** One row of a clinical list. `label` is free text — the catalogue only suggests. */
+/** One row of a clinical list. `label` is free text â the catalogue only suggests. */
 export const clinicalItemSchema = z.object({
   label: requiredText("Entry", 160),
   reaction: optionalText(200),
@@ -217,11 +227,38 @@ export const prescriptionSchema = z.object({
 export function toFieldErrors(error: z.ZodError): FormState {
   const flat = z.flattenError(error);
   const fieldErrors = flat.fieldErrors as Record<string, string[]>;
-  // Prefer a specific complaint over the generic one — a nested list renders its
+  // Prefer a specific complaint over the generic one â a nested list renders its
   // message in a banner, where "check the highlighted fields" highlights nothing.
   const firstField = Object.values(fieldErrors).find((messages) => messages?.length)?.[0];
   return {
     message: flat.formErrors[0] ?? firstField ?? "Please correct the highlighted fields.",
     fieldErrors,
   };
+}
+
+/**
+ * A fingerprint of the fields a duplicate check looks at.
+ *
+ * The confirmation a user gives is tied to this rather than being a bare "yes",
+ * so approving one set of details cannot silently approve a different set: edit
+ * the name or the date of birth after ticking and the fingerprint no longer
+ * matches, so the server asks again. The form clears the tick too, but this is
+ * what makes it true rather than merely tidy.
+ */
+export function identityFingerprint(candidate: {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  contactNumber?: string | null;
+  email?: string | null;
+}) {
+  return [
+    candidate.firstName,
+    candidate.lastName,
+    candidate.dateOfBirth,
+    candidate.contactNumber ?? "",
+    candidate.email ?? "",
+  ]
+    .map((part) => part.trim().toLowerCase().replace(/\s+/g, " "))
+    .join("|");
 }

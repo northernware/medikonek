@@ -28,6 +28,12 @@ export function PatientForm({
   const [householdId, setHouseholdId] = useState(defaults.householdId);
   const creatingHousehold = householdId === NEW_HOUSEHOLD;
 
+  // The tick starts off, and clears the moment any identifying field is edited:
+  // an approval should only ever apply to the details that were actually
+  // reviewed. The server enforces the same rule against the token.
+  const [confirmed, setConfirmed] = useState(false);
+  const clearConfirmation = () => setConfirmed(false);
+
   return (
     <form action={formAction} className="space-y-6">
       <FormError message={state.message} />
@@ -55,10 +61,18 @@ export function PatientForm({
               </li>
             ))}
           </ul>
-          {/* Nothing is merged automatically — a person decides. */}
+          {/* Nothing is merged automatically — a person decides, deliberately.
+              The value is the fingerprint of the details shown above, so editing
+              any of them invalidates this approval on the server too. */}
           <label className="mt-3 flex items-center gap-2 text-[13px]">
-            <input type="checkbox" name="confirmDuplicate" value="1" defaultChecked />
-            This is a different person — register anyway
+            <input
+              type="checkbox"
+              name="confirmDuplicate"
+              value={state.confirmToken ?? ""}
+              checked={confirmed}
+              onChange={(e) => setConfirmed(e.target.checked)}
+            />
+            I have checked these — this is a different person
           </label>
         </div>
       ) : null}
@@ -123,6 +137,7 @@ export function PatientForm({
             <TextInput
               id="firstName"
               name="firstName"
+              onChange={clearConfirmation}
               defaultValue={defaults.firstName}
               required
               invalid={Boolean(err?.firstName)}
@@ -135,6 +150,7 @@ export function PatientForm({
             <TextInput
               id="lastName"
               name="lastName"
+              onChange={clearConfirmation}
               defaultValue={defaults.lastName}
               required
               invalid={Boolean(err?.lastName)}
@@ -147,6 +163,7 @@ export function PatientForm({
             <TextInput
               id="dateOfBirth"
               name="dateOfBirth"
+              onChange={clearConfirmation}
               type="date"
               defaultValue={defaults.dateOfBirth}
               required
@@ -237,12 +254,18 @@ export function PatientForm({
 
         <FieldGrid>
           <Field label="Contact number" htmlFor="contactNumber" error={err?.contactNumber}>
-            <TextInput id="contactNumber" name="contactNumber" defaultValue={defaults.contactNumber} />
+            <TextInput
+              id="contactNumber"
+              name="contactNumber"
+              defaultValue={defaults.contactNumber}
+              onChange={clearConfirmation}
+            />
           </Field>
           <Field label="Email" htmlFor="email" error={err?.email}>
             <TextInput
               id="email"
               name="email"
+              onChange={clearConfirmation}
               type="email"
               defaultValue={defaults.email}
               invalid={Boolean(err?.email)}
